@@ -246,8 +246,7 @@ class Sheet:
                             + r'"([^"\\]|\\.)*")', re.DOTALL)
 
     def dumps(self):
-        dump = pickle.dumps(self)
-        return dump
+        return pickle.dumps(self)
 
     @staticmethod
     def position(key):
@@ -264,8 +263,7 @@ class Sheet:
 
     @staticmethod
     def loads(data):
-        sheet = pickle.loads(data)
-        return sheet
+        return pickle.loads(data)
 
     @staticmethod
     def updated(data):
@@ -337,7 +335,7 @@ class Sheet:
           modified (number of rows updated)
         """
 
-        if not request.args(0) == "data":
+        if request.args(0) != "data":
             # normal cell processing
             cell = request.vars.keys()[0]
 
@@ -487,15 +485,9 @@ class Sheet:
             if key in self.client["cells"]:
                 value = self.client["cells"][key]
                 # readonly id values
-                if c in self.client["id_columns"]:
-                    readonly = True
-                else:
-                    readonly = self.readonly
+                readonly = True if c in self.client["id_columns"] else self.readonly
             elif self.value is not None:
-                if callable(self.value):
-                    value = self.value(r, c)
-                else:
-                    value = self.value
+                value = self.value(r, c) if callable(self.value) else self.value
             else:
                 value = '0.00'
             self.cell(key, value,
@@ -510,7 +502,7 @@ class Sheet:
 
     def changed(self, node, changed_nodes=[]):
         for other_node in node.outcoming:
-            if not other_node in changed_nodes:
+            if other_node not in changed_nodes:
                 changed_nodes.append(other_node)
                 self.changed(other_node, changed_nodes)
         return changed_nodes
@@ -580,10 +572,7 @@ class Sheet:
                 key = "r%sc%s" % (row, col)
                 active, onchange, readonly, cell_value = \
                     self.get_cell_arguments(data, default=kwarg)
-                if value is None:
-                    v = cell_value
-                else:
-                    v = value
+                v = cell_value if value is None else value
                 self.cell(key, v, active=active,
                           readonly=readonly,
                           onchange=onchange, **attributes)
@@ -592,10 +581,7 @@ class Sheet:
                 self.get_cell_arguments(kwarg)
             for col, cell_value in enumerate(cells):
                 key = "r%sc%s" % (row, col)
-                if value is None:
-                    v = cell_value
-                else:
-                    v = value
+                v = cell_value if value is None else value
                 self.cell(key, v, active=active,
                           onchange=onchange,
                           readonly=readonly, **attributes)
@@ -616,10 +602,7 @@ class Sheet:
                 key = "r%sc%s" % (row, col)
                 active, onchange, readonly, cell_value = \
                     self.get_cell_arguments(data, default=kwarg)
-                if value is None:
-                    v = cell_value
-                else:
-                    v = value
+                v = cell_value if value is None else value
                 self.cell(key, v, active=active, readonly=readonly,
                           onchange=onchange, **attributes)
         else:
@@ -627,10 +610,7 @@ class Sheet:
                 self.get_cell_arguments(kwarg)
             for row, cell_value in enumerate(cells):
                 key = "r%sc%s" % (row, col)
-                if value is None:
-                    v = cell_value
-                else:
-                    v = value
+                v = cell_value if value is None else value
                 self.cell(key, v, active=active,
                           onchange=onchange, readonly=readonly,
                           **attributes)
@@ -663,10 +643,7 @@ class Sheet:
                 key = "r%sc%s" % (r + starts_r, c + starts_c)
                 active, onchange, readonly, cell_value = \
                     self.get_cell_arguments(data, default=kwarg)
-                if value is None:
-                    v = cell_value
-                else:
-                    v = value
+                v = cell_value if value is None else value
                 if (ends is None) or ((ends_r >= r + starts_r) and
                                       (ends_c >= c + starts_c)):
                     self.cell(key, v, active=active,
@@ -677,10 +654,7 @@ class Sheet:
                 self.get_cell_arguments(kwarg)
             for r, row in enumerate(cells):
                 for c, cell_value in enumerate(row):
-                    if value is None:
-                        v = cell_value
-                    else:
-                        v = value
+                    v = cell_value if value is None else value
                     key = "r%sc%s" % (r + starts_r, c + starts_c)
                     if (ends is None) or \
                        ((ends_r >= r + starts_r) and
@@ -714,8 +688,10 @@ class Sheet:
                     other_node = self.nodes[other_key]
                     other_node.outcoming[node] = True
                     node.incoming[other_node] = True
-                elif not other_key in self.allowed_keywords and \
-                        not other_key in self.environment:
+                elif (
+                    other_key not in self.allowed_keywords
+                    and other_key not in self.environment
+                ):
                     node.locked = True
                     node.computed_value = \
                         self.error % dict(
@@ -782,7 +758,7 @@ class Sheet:
 
     def set_computed_values(self, d):
         for key in d:
-            if not key in self.nodes:
+            if key not in self.nodes:
                 continue
             node = self.nodes[key]
             if node.value[:1] != '=' or not node.active:
@@ -804,10 +780,12 @@ class Sheet:
 
         rows = []
         for r in range(self.rows):
-            if not self.r_headers:
-                tds = [TH('r%s' % r), ]
-            else:
-                tds = [TH('%s' % self.r_headers[r]), ]
+            tds = (
+                [TH('r%s' % r),]
+                if not self.r_headers
+                else [TH('%s' % self.r_headers[r]),]
+            )
+
             for c in range(self.cols):
                 key = 'r%sc%s' % (r, c)
                 attributes = {"_class": "w2p_spreadsheet_col_%s" %

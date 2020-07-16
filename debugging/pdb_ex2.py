@@ -9,7 +9,7 @@ def add_one(num):
 
 def main():
     pdb.set_trace()
-    for num in range(0, 10):
+    for num in range(10):
         add_one(num)
 
 

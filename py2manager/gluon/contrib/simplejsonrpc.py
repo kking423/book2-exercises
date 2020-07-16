@@ -95,10 +95,7 @@ class ServerProxy(object):
         self.__host, self.__handler = urllib.splithost(uri)
 
         if transport is None:
-            if type == "https":
-                transport = JSONSafeTransport()
-            else:
-                transport = JSONTransport()
+            transport = JSONSafeTransport() if type == "https" else JSONTransport()
         self.__transport = transport
         self.__encoding = encoding
         self.__verbose = verbose

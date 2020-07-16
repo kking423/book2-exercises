@@ -421,7 +421,7 @@ if sys.platform in ('win32','cli'):
     # On Windows, the size of SQLWCHAR is hardcoded to 2-bytes.
     SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_ushort)
 else:
-    # Set load the library on linux 
+    # Set load the library on linux
     try:
         # First try direct loading libodbc.so
         ODBC_API = ctypes.cdll.LoadLibrary('libodbc.so')
@@ -435,7 +435,7 @@ else:
             # we try finding it manually from where libodbc.so usually appears
             lib_paths = ("/usr/lib/libodbc.so","/usr/lib/i386-linux-gnu/libodbc.so","/usr/lib/x86_64-linux-gnu/libodbc.so","/usr/lib/libiodbc.dylib")
             lib_paths = [path for path in lib_paths if os.path.exists(path)]
-            if len(lib_paths) == 0 :
+            if not lib_paths:
                 raise OdbcNoLibrary('ODBC Library is not found. Is LD_LIBRARY_PATH set?')
             else:
                 library = lib_paths[0]
@@ -446,7 +446,7 @@ else:
         except:
             # If still fail loading, abort.
             raise OdbcLibraryError('Error while loading ' + library)
-            
+
         # only iODBC uses utf-32 / UCS4 encoding data, others normally use utf-16 / UCS2
         # So we set those for handling.
         if 'libiodbc.dylib' in library:

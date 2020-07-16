@@ -292,7 +292,7 @@ class PaymenTech(object):
                     profile_order_override_ind="", order_id="",
                     amount="")
 
-        result = dict()
+        result = {}
 
         # Complete the charge request with the method kwargs
         for k, v in kwargs.iteritems():
@@ -303,16 +303,8 @@ class PaymenTech(object):
         conn = httplib.HTTPS(self.host)
         conn.putrequest('POST', self.api_url)
 
-        if self.development:
-            content_type = "PTI56"
-        else:
-            content_type = "PTI46"
-
-        if raw is None:
-            xml_string = self.charge_xml % data
-        else:
-            xml_string = raw
-
+        content_type = "PTI56" if self.development else "PTI46"
+        xml_string = self.charge_xml % data if raw is None else raw
         conn.putheader("Content-Type",
                        "application/%s") % content_type
         conn.putheader("Content-transfer-encoding", "text")

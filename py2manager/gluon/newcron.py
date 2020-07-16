@@ -131,10 +131,7 @@ class Token(object):
         if a cron job started before 60 seconds and did not stop,
         a warning is issue "Stale cron.master detected"
         """
-        if sys.platform == 'win32':
-            locktime = 59.5
-        else:
-            locktime = 59.99
+        locktime = 59.5 if sys.platform == 'win32' else 59.99
         if portalocker.LOCK_EX is None:
             logger.warning('WEB2PY CRON: Disabled because no file locking')
             return None
@@ -153,7 +150,7 @@ class Token(object):
                     logger.warning('WEB2PY CRON: Stale cron.master detected')
                 logger.debug('WEB2PY CRON: Acquiring lock')
                 self.master.seek(0)
-                pickle.dump((self.now, 0), self.master)
+                pickle.dump((ret, 0), self.master)
                 self.master.flush()
         finally:
             portalocker.unlock(self.master)
@@ -166,16 +163,18 @@ class Token(object):
         """
         Writes into cron.master the time when cron job was completed
         """
-        if not self.master.closed:
-            portalocker.lock(self.master, portalocker.LOCK_EX)
-            logger.debug('WEB2PY CRON: Releasing cron lock')
+        if self.master.closed:
+            return
+
+        portalocker.lock(self.master, portalocker.LOCK_EX)
+        logger.debug('WEB2PY CRON: Releasing cron lock')
+        self.master.seek(0)
+        (start, stop) = pickle.load(self.master)
+        if start == self.now:  # if this is my lock
             self.master.seek(0)
-            (start, stop) = pickle.load(self.master)
-            if start == self.now:  # if this is my lock
-                self.master.seek(0)
-                pickle.dump((self.now, time.time()), self.master)
-            portalocker.unlock(self.master)
-            self.master.close()
+            pickle.dump((self.now, time.time()), self.master)
+        portalocker.unlock(self.master)
+        self.master.close()
 
 
 def rangetolist(s, period='min'):
@@ -224,7 +223,7 @@ def parsecronline(line):
     daysofweek = {'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4,
                   'fri': 5, 'sat': 6}
     for (s, id) in zip(params[:5], ['min', 'hr', 'dom', 'mon', 'dow']):
-        if not s in [None, '*']:
+        if s not in [None, '*']:
             task[id] = []
             vals = s.split(',')
             for val in vals:
@@ -253,10 +252,7 @@ class cronlauncher(threading.Thread):
     def run(self):
         import subprocess
         global _cron_subprocs
-        if isinstance(self.cmd, (list, tuple)):
-            cmd = self.cmd
-        else:
-            cmd = self.cmd.split()
+        cmd = self.cmd if isinstance(self.cmd, (list, tuple)) else self.cmd.split()
         proc = subprocess.Popen(cmd,
                                 stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,

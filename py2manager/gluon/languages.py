@@ -215,10 +215,7 @@ PLURAL_RULES = read_possible_plural_rules()
 
 def read_possible_languages_aux(langdir):
     def get_lang_struct(lang, langcode, langname, langfile_mtime):
-        if lang == 'default':
-            real_lang = langcode.lower()
-        else:
-            real_lang = lang
+        real_lang = langcode.lower() if lang == 'default' else lang
         (prules_langcode,
          nplurals,
          get_plural_id,
@@ -419,8 +416,7 @@ class lazyT(object):
         return str(self)[i:j]
 
     def __iter__(self):
-        for c in str(self):
-            yield c
+        yield from str(self)
 
     def __len__(self):
         return len(str(self))
@@ -726,10 +722,7 @@ class translator(object):
             raise Exception('Incorrect parameters')
 
         if namespace:
-            if language:
-                index = '%s/%s' % (namespace, language)
-            else:
-                index = namespace
+            index = '%s/%s' % (namespace, language) if language else namespace
         else:
             index = language
         try:
@@ -809,7 +802,7 @@ class translator(object):
         if mt is not None:
             return mt
         # we did not find a translation
-        if message.find('##') > 0 and not '\n' in message:
+        if message.find('##') > 0 and '\n' not in message:
             # remove comments
             message = message.rsplit('##', 1)[0]
         # guess translation same as original
@@ -961,8 +954,7 @@ def findT(path, language=DEFAULT_LANGUAGE):
     cp = pjoin(path, 'controllers')
     vp = pjoin(path, 'views')
     mop = pjoin(path, 'modules')
-    for filename in \
-            listdir(mp, '^.+\.py$', 0) + listdir(cp, '^.+\.py$', 0)\
+    for filename in listdir(mp, '^.+\.py$', 0) + listdir(cp, '^.+\.py$', 0)\
             + listdir(vp, '^.+\.html$', 0) + listdir(mop, '^.+\.py$', 0):
         data = read_locked(filename)
         items = regex_translate.findall(data)
@@ -972,19 +964,19 @@ def findT(path, language=DEFAULT_LANGUAGE):
                 message = safe_eval(item)
             except:
                 continue  # silently ignore inproperly formatted strings
-            if not message.startswith('#') and not '\n' in message:
+            if not message.startswith('#') and '\n' not in message:
                 tokens = message.rsplit('##', 1)
             else:
                 # this allows markmin syntax in translations
                 tokens = [message]
             if len(tokens) == 2:
                 message = tokens[0].strip() + '##' + tokens[1].strip()
-            if message and not message in sentences:
+            if message and message not in sentences:
                 sentences[message] = message
-    if not '!langcode!' in sentences:
+    if '!langcode!' not in sentences:
         sentences['!langcode!'] = (
             DEFAULT_LANGUAGE if language in ('default', DEFAULT_LANGUAGE) else language)
-    if not '!langname!' in sentences:
+    if '!langname!' not in sentences:
         sentences['!langname!'] = (
             DEFAULT_LANGUAGE_NAME if language in ('default', DEFAULT_LANGUAGE)
             else sentences['!langcode!'])

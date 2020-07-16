@@ -76,17 +76,16 @@ def logout():
 def login():
     error = None
     form = LoginForm(request.form)
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            user = User.query.filter_by(name=request.form['name']).first()
-            if user is not None and user.password == request.form['password']:
-                session['logged_in'] = True
-                session['user_id'] = user.id
-                session['role'] = user.role
-                flash('Welcome!')
-                return redirect(url_for('tasks'))
-            else:
-                error = 'Invalid username or password.'
+    if request.method == 'POST' and form.validate_on_submit():
+        user = User.query.filter_by(name=request.form['name']).first()
+        if user is not None and user.password == request.form['password']:
+            session['logged_in'] = True
+            session['user_id'] = user.id
+            session['role'] = user.role
+            flash('Welcome!')
+            return redirect(url_for('tasks'))
+        else:
+            error = 'Invalid username or password.'
     return render_template('login.html', form=form, error=error)
 
 
@@ -94,21 +93,20 @@ def login():
 def register():
     error = None
     form = RegisterForm(request.form)
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            new_user = User(
-                form.name.data,
-                form.email.data,
-                form.password.data,
-            )
-            try:
-                db.session.add(new_user)
-                db.session.commit()
-                flash('Thanks for registering. Please login.')
-                return redirect(url_for('login'))
-            except IntegrityError:
-                error = 'That username and/or email already exist.'
-                return render_template('register.html', form=form, error=error)
+    if request.method == 'POST' and form.validate_on_submit():
+        new_user = User(
+            form.name.data,
+            form.email.data,
+            form.password.data,
+        )
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Thanks for registering. Please login.')
+            return redirect(url_for('login'))
+        except IntegrityError:
+            error = 'That username and/or email already exist.'
+            return render_template('register.html', form=form, error=error)
     return render_template('register.html', form=form, error=error)
 
 
@@ -128,20 +126,19 @@ def tasks():
 def new_task():
     error = None
     form = AddTaskForm(request.form)
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            new_task = Task(
-                form.name.data,
-                form.due_date.data,
-                form.priority.data,
-                datetime.datetime.utcnow(),
-                '1',
-                session['user_id']
-            )
-            db.session.add(new_task)
-            db.session.commit()
-            flash('New entry was successfully posted. Thanks.')
-            return redirect(url_for('tasks'))
+    if request.method == 'POST' and form.validate_on_submit():
+        new_task = Task(
+            form.name.data,
+            form.due_date.data,
+            form.priority.data,
+            datetime.datetime.utcnow(),
+            '1',
+            session['user_id']
+        )
+        db.session.add(new_task)
+        db.session.commit()
+        flash('New entry was successfully posted. Thanks.')
+        return redirect(url_for('tasks'))
     return render_template(
         'tasks.html',
         form=form,
@@ -160,10 +157,10 @@ def complete(task_id):
         task.update({"status": "0"})
         db.session.commit()
         flash('The task is complete. Nice.')
-        return redirect(url_for('tasks'))
     else:
         flash('You can only update tasks that belong to you.')
-        return redirect(url_for('tasks'))
+
+    return redirect(url_for('tasks'))
 
 
 @app.route('/delete/<int:task_id>/')
@@ -175,7 +172,7 @@ def delete_entry(task_id):
         task.delete()
         db.session.commit()
         flash('The task was deleted. Why not add a new one?')
-        return redirect(url_for('tasks'))
     else:
         flash('You can only delete tasks that belong to you.')
-        return redirect(url_for('tasks'))
+
+    return redirect(url_for('tasks'))

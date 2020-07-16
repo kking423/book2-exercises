@@ -149,10 +149,7 @@ def listdir(path,
         exclude_content_from = []
     if path[-1:] != os.path.sep:
         path = path + os.path.sep
-    if drop:
-        n = len(path)
-    else:
-        n = 0
+    n = len(path) if drop else 0
     regex = re.compile(expression)
     items = []
     for (root, dirs, files) in os.walk(path, topdown=True):
@@ -162,9 +159,12 @@ def listdir(path,
         if add_dirs:
             items.append(root[n:])
         for file in sorted(files):
-            if regex.match(file) and not file.startswith('.'):
-                if root not in exclude_content_from:
-                    items.append(os.path.join(root, file)[n:])
+            if (
+                regex.match(file)
+                and not file.startswith('.')
+                and root not in exclude_content_from
+            ):
+                items.append(os.path.join(root, file)[n:])
             if maxnum and len(items) >= maxnum:
                 break
     if sort:
@@ -422,10 +422,7 @@ def copystream(
     this is here because I think there is a bug in shutil.copyfileobj
     """
     while size > 0:
-        if size < chunk_size:
-            data = src.read(size)
-        else:
-            data = src.read(chunk_size)
+        data = src.read(size) if size < chunk_size else src.read(chunk_size)
         length = len(data)
         if length > size:
             (data, length) = (data[:size], size)

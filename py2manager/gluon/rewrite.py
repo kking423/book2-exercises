@@ -58,7 +58,7 @@ regex_args = re.compile('[^\w/.@=-]')
 
 def _router_default():
     """Returns new copy of default base router"""
-    router = Storage(
+    return Storage(
         default_application='init',
         applications='ALL',
         default_controller='default',
@@ -81,7 +81,6 @@ def _router_default():
         file_match = r'([-+=@$%\w]|(?<=[-+=@$%\w])[./])*$', # legal static subpath
         args_match=r'([\w@ -]|(?<=[\w@ -])[.=])*$',         # legal arg in args
     )
-    return router
 
 
 def _params_default(app=None):
@@ -104,7 +103,7 @@ def _params_default(app=None):
     p.logging = 'off'
     return p
 
-params_apps = dict()
+params_apps = {}
 params = _params_default(app=None)  # regex rewrite parameters
 THREAD_LOCAL.routes = params  # default to base regex rewrite parameters
 routers = None
@@ -400,9 +399,9 @@ def compile_regex(k, v, env=None):
     """
     k0 = k  # original k for error reporting
     # bracket regex in ^...$ if not already done
-    if not k[0] == '^':
+    if k[0] != '^':
         k = '^%s' % k
-    if not k[-1] == '$':
+    if k[-1] != '$':
         k = '%s$' % k
     # if there are no :-separated parts, prepend a catch-all for the IP address
     if k.find(':') < 0:
@@ -451,10 +450,7 @@ def load_routers(all_apps):
             router.controllers = set()
         elif not isinstance(router.controllers, str):
             router.controllers = set(router.controllers)
-        if router.languages:
-            router.languages = set(router.languages)
-        else:
-            router.languages = set()
+        router.languages = set(router.languages) if router.languages else set()
         if router.functions:
             if isinstance(router.functions, (set, tuple, list)):
                 functions = set(router.functions)
@@ -466,7 +462,7 @@ def load_routers(all_apps):
                 router.functions[controller] = set(
                     router.functions[controller])
         else:
-            router.functions = dict()
+            router.functions = {}
         if app != 'BASE':
             for base_only in ROUTER_BASE_KEYS:
                 router.pop(base_only, None)
@@ -500,9 +496,8 @@ def load_routers(all_apps):
         if router.args_match:
             router._args_match = re.compile(router.args_match)
         # convert path_prefix to a list of path elements
-        if router.path_prefix:
-            if isinstance(router.path_prefix, str):
-                router.path_prefix = router.path_prefix.strip('/').split('/')
+        if router.path_prefix and isinstance(router.path_prefix, str):
+            router.path_prefix = router.path_prefix.strip('/').split('/')
 
     #  rewrite BASE.domains as tuples
     #
@@ -510,7 +505,7 @@ def load_routers(all_apps):
     #      value: 'application[/controller] -> (application, controller)
     #      (port and controller may be None)
     #
-    domains = dict()
+    domains = {}
     if routers.BASE.domains:
         for (d, a) in routers.BASE.domains.iteritems():
             (domain, app) = (d.strip(':'), a.strip('/'))
@@ -585,10 +580,7 @@ def regex_filter_in(e):
         items = path.split('?', 1)
         e['PATH_INFO'] = items[0]
         if len(items) > 1:
-            if query:
-                query = items[1] + '&' + query
-            else:
-                query = items[1]
+            query = items[1] + '&' + query if query else items[1]
             e['QUERY_STRING'] = query
     e['REQUEST_URI'] = e['PATH_INFO'] + (query and ('?' + query) or '')
     return e
@@ -827,7 +819,7 @@ class MapUrlIn(object):
         self.extension = 'html'
 
         self.controllers = set()
-        self.functions = dict()
+        self.functions = {}
         self.languages = set()
         self.default_language = None
         self.map_hyphen = False
@@ -1130,10 +1122,7 @@ class MapUrlOut(object):
                  function, args, other, scheme, host, port, language):
         """initialize a map-out object"""
         self.default_application = routers.BASE.default_application
-        if application in routers:
-            self.router = routers[application]
-        else:
-            self.router = routers.BASE
+        self.router = routers[application] if application in routers else routers.BASE
         self.request = request
         self.env = env
         self.application = application
@@ -1230,20 +1219,24 @@ class MapUrlOut(object):
         if self.omit_language:
             if not applications or self.controller in applications:
                 self.omit_application = False
-            if self.omit_application:
-                if not applications or self.function in applications:
-                    self.omit_controller = False
+            if self.omit_application and (
+                not applications or self.function in applications
+            ):
+                self.omit_controller = False
         if not self.controllers or self.function in self.controllers:
             self.omit_controller = False
-        if self.args:
-            if self.args[0] in self.functions or self.args[0] in self.controllers or self.args[0] in applications:
-                self.omit_function = False
-        if self.omit_controller:
-            if self.function in self.controllers or self.function in applications:
-                self.omit_controller = False
-        if self.omit_application:
-            if self.controller in applications:
-                self.omit_application = False
+        if self.args and (
+            self.args[0] in self.functions
+            or self.args[0] in self.controllers
+            or self.args[0] in applications
+        ):
+            self.omit_function = False
+        if self.omit_controller and (
+            self.function in self.controllers or self.function in applications
+        ):
+            self.omit_controller = False
+        if self.omit_application and self.controller in applications:
+            self.omit_application = False
 
         #  handle static as a special case
         #  (easier for external static handling)

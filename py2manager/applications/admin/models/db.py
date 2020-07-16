@@ -29,7 +29,7 @@ if MULTI_USER_MODE:
 if not session.authorized and MULTI_USER_MODE:
     if auth.user and not request.function == 'user':
         session.authorized = True
-    elif not request.function == 'user':
+    elif request.function != 'user':
         redirect(URL('default', 'user/login'))
 
 

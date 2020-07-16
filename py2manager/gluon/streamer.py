@@ -28,7 +28,7 @@ DEFAULT_CHUNK_SIZE = 64 * 1024
 def streamer(stream, chunk_size=DEFAULT_CHUNK_SIZE, bytes=None):
     offset = 0
     while bytes is None or offset < bytes:
-        if not bytes is None and bytes - offset < chunk_size:
+        if bytes is not None and bytes - offset < chunk_size:
             chunk_size = bytes - offset
         data = stream.read(chunk_size)
         length = len(data)

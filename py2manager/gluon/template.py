@@ -431,7 +431,7 @@ class TemplateParser(object):
 
         # Allow Views to include other views dynamically
         context = self.context
-        if current and not "response" in context:
+        if current and "response" not in context:
             context["response"] = getattr(current, 'response', None)
 
         # Get the filename; filename looks like ``"template.html"``.
@@ -895,7 +895,7 @@ def render(content="hello world",
         Response = DummyResponse
 
         # Add it to the context so we can use it.
-        if not 'NOESCAPE' in context:
+        if 'NOESCAPE' not in context:
             context['NOESCAPE'] = NOESCAPE
 
     if isinstance(content, unicode):

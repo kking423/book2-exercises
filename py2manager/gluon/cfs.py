@@ -44,10 +44,7 @@ def getcfs(key, filename, filter=None):
     cfs_lock.release()
     if item and item[0] == t:
         return item[1]
-    if not callable(filter):
-        data = read_file(filename)
-    else:
-        data = filter()
+    data = read_file(filename) if not callable(filter) else filter()
     cfs_lock.acquire()
     cfs[key] = (t, data)
     cfs_lock.release()

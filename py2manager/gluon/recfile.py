@@ -34,9 +34,7 @@ def exists(filename, path=None):
     if path is None:
         path, filename = os.path.split(filename)
     fullfilename = os.path.join(path, generate(filename))
-    if os.path.exists(fullfilename):
-        return True
-    return False
+    return bool(os.path.exists(fullfilename))
 
 
 def remove(filename, path=None):

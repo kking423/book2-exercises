@@ -90,7 +90,7 @@ class Highlighter(object):
         if style and style[:5] == 'link:':
             self.change_style(None, None)
             (url, style) = style[5:].split(';', 1)
-            if url == 'None' or url == '':
+            if url in ['None', '']:
                 self.output.append('<span style="%s">%s</span>'
                                    % (style, value))
             else:
@@ -208,7 +208,7 @@ class Highlighter(object):
         mode = self.mode
         while i < len(data):
             for (token, o_re, style) in Highlighter.all_styles[mode][1]:
-                if not token in self.suppress_tokens:
+                if token not in self.suppress_tokens:
                     match = o_re.match(data, i)
                     if match:
                         if style:
@@ -220,7 +220,7 @@ class Highlighter(object):
                             new_mode = \
                                 Highlighter.all_styles[mode][0](self,
                                                                 token, match, style)
-                        if not new_mode is None:
+                        if new_mode is not None:
                             mode = new_mode
                         i += max(1, len(match.group()))
                         break
@@ -238,13 +238,12 @@ class Highlighter(object):
 
         if token in self.styles:
             style = self.styles[token]
-        if self.span_style != style:
-            if style != 'Keep':
-                if not self.span_style is None:
-                    self.output.append('</span>')
-                if not style is None:
-                    self.output.append('<span style="%s">' % style)
-                self.span_style = style
+        if self.span_style != style and style != 'Keep':
+            if self.span_style is not None:
+                self.output.append('</span>')
+            if style is not None:
+                self.output.append('<span style="%s">' % style)
+            self.span_style = style
 
 
 def highlight(
@@ -259,7 +258,7 @@ def highlight(
 ):
     styles = styles or {}
     attributes = attributes or {}
-    if not 'CODE' in styles:
+    if 'CODE' not in styles:
         code_style = """
         font-size: 11px;
         font-family: Bitstream Vera Sans Mono,monospace;
@@ -271,7 +270,7 @@ def highlight(
         white-space: pre !important;\n"""
     else:
         code_style = styles['CODE']
-    if not 'LINENUMBERS' in styles:
+    if 'LINENUMBERS' not in styles:
         linenumbers_style = """
         font-size: 11px;
         font-family: Bitstream Vera Sans Mono,monospace;
@@ -282,7 +281,7 @@ def highlight(
         color: #A0A0A0;\n"""
     else:
         linenumbers_style = styles['LINENUMBERS']
-    if not 'LINEHIGHLIGHT' in styles:
+    if 'LINEHIGHLIGHT' not in styles:
         linehighlight_style = "background-color: #EBDDE2;"
     else:
         linehighlight_style = styles['LINEHIGHLIGHT']

@@ -11,8 +11,7 @@ from blog.forms import PostForm
 ####################
 
 def get_popular_posts():
-    popular_posts = Post.objects.order_by('-views')[:5]
-    return popular_posts
+    return Post.objects.order_by('-views')[:5]
 
 
 ##################

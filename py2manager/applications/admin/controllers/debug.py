@@ -59,24 +59,30 @@ def interact():
             lines = open(filename).readlines()
         except:
             lines = ""
-        lines = dict([(i + 1, l) for (i, l) in enumerate(
-            [l.strip("\n").strip("\r") for l in lines])])
+        lines = dict(
+            [
+                (i + 1, l)
+                for (i, l) in enumerate(
+                    l.strip("\n").strip("\r") for l in lines
+                )
+            ]
+        )
+
         filename = os.path.basename(filename)
     else:
         lines = {}
 
+    f_globals = {}
     if filename:
         web_debugger.set_burst(2)
         env = web_debugger.do_environment()
         f_locals = env['locals']
-        f_globals = {}
         for name, value in env['globals'].items():
             if name not in gluon.html.__all__ and \
                 name not in gluon.validators.__all__:
                 f_globals[name] = pydoc.text.repr(value)
     else:
         f_locals = {}
-        f_globals = {}
         response.headers['refresh'] = "3"
 
     if web_debugger.exception_info:

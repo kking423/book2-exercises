@@ -384,19 +384,15 @@ def URL(a=None,
         else:
             other += '?%s' % '&'.join(['%s=%s' % var[:2] for var in list_vars])
     if anchor:
-        if url_encode:
-            other += '#' + urllib.quote(str(anchor))
-        else:
-            other += '#' + (str(anchor))
+        other += '#' + urllib.quote(str(anchor)) if url_encode else '#' + (str(anchor))
     if extension:
         function += '.' + extension
 
     if regex_crlf.search(join([application, controller, function, other])):
         raise SyntaxError('CRLF Injection Detected')
 
-    url = url_out(r, env, application, controller, function,
+    return url_out(r, env, application, controller, function,
                   args, other, scheme, host, port, language=language)
-    return url
 
 
 def verifyURL(request, hmac_key=None, hash_vars=True, salt=None, user_signature=None):
@@ -524,14 +520,8 @@ class XmlComponent(object):
         return CAT(*[self for i in range(n)])
 
     def __add__(self, other):
-        if isinstance(self, CAT):
-            components = self.components
-        else:
-            components = [self]
-        if isinstance(other, CAT):
-            components += other.components
-        else:
-            components += [other]
+        components = self.components if isinstance(self, CAT) else [self]
+        components += other.components if isinstance(other, CAT) else [other]
         return CAT(*components)
 
     def add_class(self, name):
@@ -642,8 +632,7 @@ class XML(XmlComponent):
         return str(self)[i:j]
 
     def __iter__(self):
-        for c in str(self):
-            yield c
+        yield from str(self)
 
     def __len__(self):
         return len(str(self))
@@ -1208,7 +1197,7 @@ class DIV(XmlComponent):
         Finds all sibling components that match the supplied argument list
         and attribute dictionary, or None if nothing could be found
         """
-        sibs = [s for s in self.parent.components if not s == self]
+        sibs = [s for s in self.parent.components if s != self]
         matches = []
         first_only = False
         if 'first_only' in kargs:
@@ -1372,27 +1361,21 @@ class XHTML(DIV):
 
     def xml(self):
         xmlns = self['xmlns']
-        if xmlns:
-            self.attributes['_xmlns'] = xmlns
-        else:
-            self.attributes['_xmlns'] = self.xmlns
+        self.attributes['_xmlns'] = xmlns if xmlns else self.xmlns
         lang = self['lang']
         if not lang:
             lang = 'en'
         self.attributes['_lang'] = lang
         self.attributes['_xml:lang'] = lang
         doctype = self['doctype']
-        if doctype:
-            if doctype == 'strict':
-                doctype = self.strict
-            elif doctype == 'transitional':
-                doctype = self.transitional
-            elif doctype == 'frameset':
-                doctype = self.frameset
-            else:
-                doctype = '%s\n' % doctype
-        else:
+        if doctype and doctype == 'strict':
+            doctype = self.strict
+        elif doctype == 'transitional' or not doctype:
             doctype = self.transitional
+        elif doctype == 'frameset':
+            doctype = self.frameset
+        else:
+            doctype = '%s\n' % doctype
         (fa, co) = self._xml()
         return '%s<%s%s>%s</%s>' % (doctype, self.tag, fa, co, self.tag)
 
@@ -1579,10 +1562,7 @@ class A(DIV):
             self['_data-w2p_method'] = 'POST'
             self['_href'] = self['callback']
             if self['delete'] and not self['noconfirm']:
-                if not self['confirm']:
-                    self['_data-w2p_confirm'] = 'default'
-                else:
-                    self['_data-w2p_confirm'] = self['confirm']
+                self['_data-w2p_confirm'] = self['confirm'] if self['confirm'] else 'default'
         elif self['cid']:
             self['_data-w2p_method'] = 'GET'
             self['_data-w2p_target'] = self['cid']
@@ -1897,13 +1877,10 @@ class INPUT(DIV):
                 value = str(value).split('|')
             self['_checked'] = _value in value and 'checked' or None
         elif t == 'radio':
-            if str(value) == str(_value):
-                self['_checked'] = 'checked'
-            else:
-                self['_checked'] = None
+            self['_checked'] = 'checked' if str(value) == str(_value) else None
         elif t == 'password' and value != DEFAULT_PASSWORD_DISPLAY:
             self['value'] = ''
-        elif not t == 'submit':
+        elif t != 'submit':
             if value is None:
                 self['value'] = _value
             elif not isinstance(value, list):
@@ -2010,26 +1987,20 @@ class SELECT(INPUT):
                 component_list.append(c.components)
             else:
                 component_list.append([c])
-        options = itertools.chain(*component_list)
-
         value = self['value']
         if value is not None:
+            options = itertools.chain(*component_list)
+
             if not self['_multiple']:
                 for c in options:  # my patch
-                    if ((value is not None) and (str(c['_value']) == str(value))):
-                        c['_selected'] = 'selected'
-                    else:
-                        c['_selected'] = None
+                    c['_selected'] = 'selected' if str(c['_value']) == str(value) else None
             else:
                 if isinstance(value, (list, tuple)):
                     values = [str(item) for item in value]
                 else:
                     values = [str(value)]
                 for c in options:  # my patch
-                    if ((value is not None) and (str(c['_value']) in values)):
-                        c['_selected'] = 'selected'
-                    else:
-                        c['_selected'] = None
+                    c['_selected'] = 'selected' if str(c['_value']) in values else None
 
 
 class FIELDSET(DIV):
@@ -2349,10 +2320,7 @@ class FORM(DIV):
             return obj
 
         def flatten(obj):
-            if isinstance(obj, (dict, Storage)):
-                newobj = obj.copy()
-            else:
-                newobj = obj
+            newobj = obj.copy() if isinstance(obj, (dict, Storage)) else obj
             if sanitize:
                 newobj = sanitizer(newobj)
             if flat:
@@ -2430,9 +2398,8 @@ class BEAUTIFY(DIV):
         if level == 0:
             return
         for c in self.components:
-            if hasattr(c, 'value') and not callable(c.value):
-                if c.value:
-                    components.append(c.value)
+            if hasattr(c, 'value') and not callable(c.value) and c.value:
+                components.append(c.value)
             if hasattr(c, 'xml') and callable(c.xml):
                 components.append(c)
                 continue
@@ -2514,10 +2481,7 @@ class MENU(DIV):
             self['mobile'] = False
 
     def serialize(self, data, level=0):
-        if level == 0:
-            ul = UL(**self.attributes)
-        else:
-            ul = UL(_class=self['ul_class'])
+        ul = UL(**self.attributes) if level == 0 else UL(_class=self['ul_class'])
         for item in data:
             if isinstance(item, LI):
                 ul.append(item)
@@ -2531,15 +2495,16 @@ class MENU(DIV):
                     li = LI(A(name, **link))
                 elif link:
                     li = LI(A(name, _href=link))
-                elif not link and isinstance(name, A):
+                elif isinstance(name, A):
                     li = LI(name)
                 else:
                     li = LI(A(name, _href='#',
                               _onclick='javascript:void(0);return false;'))
-                if level == 0 and item == data[0]:
-                    li['_class'] = self['li_first']
-                elif level == 0 and item == data[-1]:
-                    li['_class'] = self['li_last']
+                if level == 0:
+                    if item == data[0]:
+                        li['_class'] = self['li_first']
+                    elif item == data[-1]:
+                        li['_class'] = self['li_last']
                 if len(item) > 3 and item[3]:
                     li['_class'] = self['li_class']
                     li.append(self.serialize(item[3], level + 1))
@@ -2735,11 +2700,11 @@ def markdown_serializer(text, tag=None, attr=None):
         return '#' * 4 + text + '\n\n'
     if tag == 'p':
         return text + '\n\n'
-    if tag == 'b' or tag == 'strong':
+    if tag in ['b', 'strong']:
         return '**%s**' % text
-    if tag == 'em' or tag == 'i':
+    if tag in ['em', 'i']:
         return '*%s*' % text
-    if tag == 'tt' or tag == 'code':
+    if tag in ['tt', 'code']:
         return '`%s`' % text
     if tag == 'a':
         return '[%s](%s)' % (text, attr.get('_href', ''))

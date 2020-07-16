@@ -106,11 +106,7 @@ class RedisClient(object):
         self.with_lock = with_lock
         self.fail_gracefully = fail_gracefully
         self.prefix = "w2p:cache:%s:" % self.request.application
-        if self.request:
-            app = self.request.application
-        else:
-            app = ''
-
+        app = self.request.application if self.request else ''
         if app not in self.meta_storage:
             self.storage = self.meta_storage[app] = {
                 CacheAbstract.cache_stats_name: {
@@ -271,7 +267,7 @@ class RedisClient(object):
                     'web2py_cache_statistics:hit_total'),
                 misses=self.r_server.get('web2py_cache_statistics:misses')
             )
-        stats_collector['w2p_keys'] = dict()
+        stats_collector['w2p_keys'] = {}
 
         for a in self.r_server.keys("w2p:%s:*" % (
                 self.request.application)):

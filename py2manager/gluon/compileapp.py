@@ -187,7 +187,7 @@ def LOAD(c=None, f='index', args=None, vars=None,
         else:
             statement = "$.web2py.component('%s','%s');" % (url, target)
         attr['_data-w2p_remote'] = url
-        if not target is None:
+        if target is not None:
             return DIV(content, **attr)
 
     else:
@@ -381,7 +381,8 @@ OLD IMPLEMENTATION:
     return module
 """
 
-_base_environment_ = dict((k, getattr(html, k)) for k in html.__all__)
+
+_base_environment_ = {k: getattr(html, k) for k in html.__all__}
 _base_environment_.update(
     (k, getattr(validators, k)) for k in validators.__all__)
 _base_environment_['__builtins__'] = __builtins__
@@ -629,7 +630,7 @@ def run_controller_in(controller, function, environment):
                        web2py_error=badc)
         code = read_file(filename)
         exposed = find_exposed_functions(code)
-        if not function in exposed:
+        if function not in exposed:
             raise HTTP(404,
                        rewrite.THREAD_LOCAL.routes.error_message % badf,
                        web2py_error=badf)
@@ -680,7 +681,7 @@ def run_view_in(environment):
             files = ['views_%s.pyc' % x]
             is_compiled = os.path.exists(pjoin(path, files[0]))
             # Don't use a generic view if the non-compiled view exists.
-            if is_compiled or (not is_compiled and not os.path.exists(filename)):
+            if is_compiled or not os.path.exists(filename):
                 if allow_generic:
                     files.append('views_generic.%s.pyc' % request.extension)
                 # for backward compatibility
@@ -736,8 +737,7 @@ def compile_application(folder, skip_failed_views=False):
     os.mkdir(pjoin(folder, 'compiled'))
     compile_models(folder)
     compile_controllers(folder)
-    failed_views = compile_views(folder, skip_failed_views)
-    return failed_views
+    return compile_views(folder, skip_failed_views)
 
 
 def test():

@@ -91,10 +91,7 @@ class PDF(object):
                             for x in item])
                 righta = [k for k,v in enumerate(items[0])
                           if isinstance(v,(int,float,Decimal))]
-                if page == pages-1:
-                    total = self.format_currency(invoice['total'])
-                else:
-                    total = ''
+                total = self.format_currency(invoice['total']) if page == pages-1 else ''
                 data.append(['']*(len(items[0])-1)+[total])
                 colWidths = [2.5*cm]*len(items[0])
                 colWidths[1] = (21.5-2.5*len(items[0]))*cm

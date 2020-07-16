@@ -196,7 +196,7 @@ class RScheduler(Scheduler):
                     worker_stats=dumps(self.w_stats))
             )
             r_server.sadd(status_keyset, status_key)
-            if not self.w_stats.status == POLLING:
+            if self.w_stats.status != POLLING:
                 self.w_stats.status = ACTIVE
                 self.w_stats.sleep = self.heartbeat
                 mybackedstatus = ACTIVE
@@ -370,16 +370,14 @@ class RScheduler(Scheduler):
             )
         )._select(sd.task_child)
         no_deps = db(
-            (st.status.belongs((QUEUED, ASSIGNED))) &
-            (
-                (sd.id == None) | (st.id.belongs(deps_with_no_deps))
+            (st.status.belongs((QUEUED, ASSIGNED)))
+            & ((sd.id is None) | (st.id.belongs(deps_with_no_deps)))
+        )._select(
+            st.id,
+            distinct=True,
+            left=sd.on((st.id == sd.task_parent) & (sd.can_visit == False)),
+        )
 
-            )
-        )._select(st.id, distinct=True, left=sd.on(
-                 (st.id == sd.task_parent) &
-                 (sd.can_visit == False)
-        )
-        )
 
         all_available = db(
             (st.status.belongs((QUEUED, ASSIGNED))) &
@@ -394,7 +392,7 @@ class RScheduler(Scheduler):
         db.commit()
         x = 0
         r_server = self.r_server
-        for group in wkgroups.keys():
+        for group in wkgroups:
             queued_list = self._nkey('queued:%s' % group)
             queued_set = self._nkey('queued_set:%s' % group)
             # if are running, let's don't assign them again

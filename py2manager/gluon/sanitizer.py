@@ -121,7 +121,7 @@ class XssCleaner(HTMLParser):
                         bt += ' %s=%s' % (xssescape(attribute),
                                           quoteattr(attrs[attribute]))
             # deal with <a> without href and <img> without src
-            if bt == '<a' or bt == '<img':
+            if bt in ['<a', '<img']:
                 return
             if tag in self.requires_no_close:
                 bt += ' /'
