@@ -77,8 +77,7 @@ class RedisClient(object):
         return self.tablename
 
     def __call__(self, where=''):
-        q = self.tablename.query
-        return q
+        return self.tablename.query
 
     def commit(self):
         # this is only called by session2trash.py
@@ -117,7 +116,10 @@ class MockTable(object):
         return row[0] if row else Storage()
 
     def __getattr__(self, key):
-        if key == 'id':
+        if key == '_db':
+            # needed because of the calls in sessions2trash.py and globals.py
+            return self.db
+        elif key == 'id':
             # return a fake query. We need to query it just by id for normal operations
             self.query = MockQuery(
                 field='id', db=self.db,
@@ -125,9 +127,6 @@ class MockTable(object):
                 with_lock=self.with_lock, unique_key=self.unique_key
             )
             return self.query
-        elif key == '_db':
-            # needed because of the calls in sessions2trash.py and globals.py
-            return self.db
 
     def insert(self, **kwargs):
         # usually kwargs would be a Storage with several keys:
@@ -182,13 +181,12 @@ class MockQuery(object):
             if self.with_lock:
                 acquire_lock(self.db.r_server, key + ':lock', self.value, 2)
             rtn = self.db.r_server.hgetall(key)
-            if rtn:
-                if self.unique_key:
-                    # make sure the id and unique_key are correct
-                    if rtn['unique_key'] == self.unique_key:
-                        rtn['update_record'] = self.update  # update record support
-                    else:
-                        rtn = None
+            if rtn and self.unique_key:
+                # make sure the id and unique_key are correct
+                if rtn['unique_key'] == self.unique_key:
+                    rtn['update_record'] = self.update  # update record support
+                else:
+                    rtn = None
             return [Storage(rtn)] if rtn else []
         elif self.op == 'ge' and self.field == 'id' and self.value == 0:
             # means that someone wants the complete list
@@ -230,9 +228,9 @@ class MockQuery(object):
     def delete(self, **kwargs):
         # means that we want this session to be deleted
         if self.op == 'eq' and self.field == 'id' and self.value:
-            id_idx = "%s:id_idx" % self.keyprefix
-            key = self.keyprefix + ':' + str(self.value)
             with self.db.r_server.pipeline() as pipe:
+                id_idx = "%s:id_idx" % self.keyprefix
+                key = self.keyprefix + ':' + str(self.value)
                 pipe.delete(key)
                 pipe.srem(id_idx, key)
                 rtn = pipe.execute()

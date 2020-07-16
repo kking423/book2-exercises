@@ -727,10 +727,7 @@ class _FeedParserMixin:
         if ref in ('34', '38', '39', '60', '62', 'x22', 'x26', 'x27', 'x3c', 'x3e'):
             text = '&#%s;' % ref
         else:
-            if ref[0] == 'x':
-                c = int(ref[1:], 16)
-            else:
-                c = int(ref)
+            c = int(ref[1:], 16) if ref[0] == 'x' else int(ref)
             text = unichr(c).encode('utf-8')
         self.elementstack[-1][2].append(text)
 
@@ -793,7 +790,7 @@ class _FeedParserMixin:
 
     def mapContentType(self, contentType):
         contentType = contentType.lower()
-        if contentType == 'text' or contentType == 'plain':
+        if contentType in ['text', 'plain']:
             contentType = u'text/plain'
         elif contentType == 'html':
             contentType = u'text/html'
@@ -1104,16 +1101,13 @@ class _FeedParserMixin:
 
     def _start_feed(self, attrsD):
         self.infeed = 1
-        versionmap = {'0.1': u'atom01',
-                      '0.2': u'atom02',
-                      '0.3': u'atom03'}
         if not self.version:
             attr_version = attrsD.get('version')
+            versionmap = {'0.1': u'atom01',
+                          '0.2': u'atom02',
+                          '0.3': u'atom03'}
             version = versionmap.get(attr_version)
-            if version:
-                self.version = version
-            else:
-                self.version = u'atom'
+            self.version = version if version else u'atom'
 
     def _end_channel(self):
         self.infeed = 0
@@ -1830,8 +1824,8 @@ class _FeedParserMixin:
 
     def _end_content(self):
         copyToSummary = self.mapContentType(self.contentparams.get('type')) in ([u'text/plain'] + self.html_types)
-        value = self.popContent('content')
         if copyToSummary:
+            value = self.popContent('content')
             self._save('summary', value)
 
     _end_body = _end_content
@@ -1921,9 +1915,12 @@ class _FeedParserMixin:
     def _end_media_thumbnail(self):
         url = self.pop('url')
         context = self._getContext()
-        if url != None and len(url.strip()) != 0:
-            if 'url' not in context['media_thumbnail'][-1]:
-                context['media_thumbnail'][-1]['url'] = url
+        if (
+            url != None
+            and len(url.strip()) != 0
+            and 'url' not in context['media_thumbnail'][-1]
+        ):
+            context['media_thumbnail'][-1]['url'] = url
 
     def _start_media_player(self, attrsD):
         self.push('media_player', 0)
@@ -2037,10 +2034,7 @@ if _XML_AVAILABLE:
         def endElementNS(self, name, qname):
             namespace, localname = name
             lowernamespace = str(namespace or '').lower()
-            if qname and qname.find(':') > 0:
-                givenprefix = qname.split(':')[0]
-            else:
-                givenprefix = ''
+            givenprefix = qname.split(':')[0] if qname and qname.find(':') > 0 else ''
             prefix = self._matchnamespaces.get(lowernamespace, givenprefix)
             if prefix:
                 localname = prefix + ':' + localname
@@ -2103,9 +2097,12 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
 
     def parse_starttag(self,i):
         j = self.__parse_starttag(i)
-        if self._type == 'application/xhtml+xml':
-            if j>2 and self.rawdata[j-2:j]=='/>':
-                self.unknown_endtag(self.lasttag)
+        if (
+            self._type == 'application/xhtml+xml'
+            and j > 2
+            and self.rawdata[j - 2 : j] == '/>'
+        ):
+            self.unknown_endtag(self.lasttag)
         return j
 
     def feed(self, data):
@@ -2172,11 +2169,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         # called for each character reference, e.g. for '&#160;', ref will be '160'
         # Reconstruct the original character reference.
         ref = ref.lower()
-        if ref.startswith('x'):
-            value = int(ref[1:], 16)
-        else:
-            value = int(ref)
-
+        value = int(ref[1:], 16) if ref.startswith('x') else int(ref)
         if value in _cp1252:
             self.pieces.append('&#%s;' % hex(ord(_cp1252[value]))[1:])
         else:
@@ -2678,11 +2671,11 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
         _BaseHTMLProcessor.unknown_starttag(self, tag, clean_attrs)
 
     def unknown_endtag(self, tag):
-        if not tag in self.acceptable_elements:
+        if tag not in self.acceptable_elements:
             if tag in self.unacceptable_elements_with_end_tag:
                 self.unacceptablestack -= 1
             if self.mathmlOK and tag in self.mathml_elements:
-                if tag == 'math' and self.mathmlOK:
+                if tag == 'math':
                     self.mathmlOK -= 1
             elif self.svgOK and tag in self.svg_elements:
                 tag = self.svg_elem_map.get(tag,tag)
@@ -2721,8 +2714,10 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
                 clean.append(prop + ': ' + value + ';')
             elif prop.split('-')[0].lower() in ['background','border','margin','padding']:
                 for keyword in value.split():
-                    if not keyword in self.acceptable_css_keywords and \
-                        not self.valid_css_values.match(keyword):
+                    if (
+                        keyword not in self.acceptable_css_keywords
+                        and not self.valid_css_values.match(keyword)
+                    ):
                         break
                 else:
                     clean.append(prop + ': ' + value + ';')
@@ -3279,8 +3274,8 @@ def _parse_date_w3dtf(datestr):
         except ValueError:
             return None
         if parts[2].startswith('-'):
-            tzhour = tzhour * -1
-            tzmin = tzmin * -1
+            tzhour *= -1
+            tzmin *= -1
     else:
         tzhour = timezonenames.get(parts[2], 0)
     try:
@@ -3378,8 +3373,8 @@ def _parse_date_rfc822(date):
         except ValueError:
             return None
         if parts[4].startswith('-'):
-            tzhour = tzhour * -1
-            tzmin = tzmin * -1
+            tzhour *= -1
+            tzmin *= -1
     else:
         tzhour = timezonenames.get(parts[4], 0)
     # Create the datetime object and timezone delta objects
@@ -3724,11 +3719,7 @@ def replace_doctype(data):
     # Find the DOCTYPE declaration and check the feed type.
     doctype_results = RE_DOCTYPE_PATTERN.findall(head)
     doctype = doctype_results and doctype_results[0] or _s2bytes('')
-    if _s2bytes('netscape') in doctype.lower():
-        version = u'rss091n'
-    else:
-        version = None
-
+    version = u'rss091n' if _s2bytes('netscape') in doctype.lower() else None
     # Re-insert the safe ENTITY declarations if a DOCTYPE was found.
     replacement = _s2bytes('')
     if len(doctype_results) == 1 and entity_results:
@@ -3741,8 +3732,11 @@ def replace_doctype(data):
     data = RE_DOCTYPE_PATTERN.sub(replacement, head) + data
 
     # Precompute the safe entities for the loose parser.
-    safe_entities = dict((k.decode('utf-8'), v.decode('utf-8'))
-                      for k, v in RE_SAFE_ENTITY_PATTERN.findall(replacement))
+    safe_entities = {
+        k.decode('utf-8'): v.decode('utf-8')
+        for k, v in RE_SAFE_ENTITY_PATTERN.findall(replacement)
+    }
+
     return version, data, safe_entities
 
 

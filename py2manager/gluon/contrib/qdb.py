@@ -447,9 +447,9 @@ class Qdb(bdb.Bdb):
             # sys.exc_info() returns (type, value, traceback) if an exception is
             # being handled, otherwise it returns None
             t = sys.exc_info()[2]
-            if t is None:
-                raise ValueError("A valid traceback must be passed if no "
-                                 "exception is being handled")
+        if t is None:
+            raise ValueError("A valid traceback must be passed if no "
+                             "exception is being handled")
         self.reset()
         # get last frame:
         while t is not None:
@@ -505,8 +505,7 @@ class QueuePipe(object):
         self.out_queue.put(data, block=True)
 
     def recv(self, count=None, timeout=None):
-        data = self.in_queue.get(block=True, timeout=timeout)
-        return data
+        return self.in_queue.get(block=True, timeout=timeout)
 
     def poll(self, timeout=None):
         return not self.in_queue.empty()
@@ -785,10 +784,7 @@ class Cli(Frontend, cmd.Cmd):
     def do_set_breakpoint(self, arg):
         "Set a breakpoint at filename:breakpoint"
         if arg:
-            if ':' in arg:
-                args = arg.split(":")
-            else:
-                args = (self.filename, arg)
+            args = arg.split(":") if ':' in arg else (self.filename, arg)
             Frontend.do_set_breakpoint(self, *args)
         else:
             self.do_list_breakpoint()

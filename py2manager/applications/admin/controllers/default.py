@@ -129,11 +129,7 @@ def index():
             session.authorized = True
             login_record(True)
 
-            if CHECK_VERSION:
-                session.check_version = True
-            else:
-                session.check_version = False
-
+            session.check_version = True if CHECK_VERSION else False
             session.last_time = t0
             if isinstance(send, list):  # ## why does this happen?
                 send = str(send[0])
@@ -464,9 +460,9 @@ def uninstall():
         if MULTI_USER_MODE:
             if is_manager() and db(db.app.name == app).delete():
                 pass
-            elif db(db.app.name == app)(db.app.owner == auth.user.id).delete():
-                pass
-            else:
+            elif not db(db.app.name == app)(
+                db.app.owner == auth.user.id
+            ).delete():
                 session.flash = T('no permission to uninstall "%s"', app)
                 redirect(URL('site'))
         try:
@@ -562,10 +558,7 @@ def peek():
     """ Visualize object code """
     app = get_app(request.vars.app)
     filename = '/'.join(request.args)
-    if request.vars.app:
-        path = abspath(filename)
-    else:
-        path = apath(filename, r=request)
+    path = abspath(filename) if request.vars.app else apath(filename, r=request)
     try:
         data = safe_read(path).replace('\r', '')
     except IOError:
@@ -583,11 +576,7 @@ def peek():
 def test():
     """ Execute controller tests """
     app = get_app()
-    if len(request.args) > 1:
-        file = request.args[1]
-    else:
-        file = '.*\.py'
-
+    file = request.args[1] if len(request.args) > 1 else '.*\.py'
     controllers = listdir(
         apath('%s/controllers/' % app, r=request), file + '$')
 
@@ -604,9 +593,7 @@ def search():
 
     def match(filename, keywords):
         filename = os.path.join(apath(app, r=request), filename)
-        if keywords in read_file(filename, 'rb'):
-            return True
-        return False
+        return keywords in read_file(filename, 'rb')
     path = apath(request.args[0], r=request)
     files1 = glob(os.path.join(path, '*/*.py'))
     files2 = glob(os.path.join(path, '*/*.html'))
@@ -904,13 +891,9 @@ def resolve():
         # TODO: we really need to comment this
         z = ''
         for (k, c) in enumerate(line):
-            if c == ' ':
+            if c in [' ', ' \t']:
                 z += '&nbsp;'
-            elif c == ' \t':
-                z += '&nbsp;'
-            elif k == 0 and c == '?':
-                pass
-            else:
+            elif k != 0 or c != '?':
                 break
 
         return XML(z)
@@ -957,9 +940,7 @@ def edit_language():
 
     keys = sorted(strings.keys(), lambda x, y: cmp(
         unicode(x, 'utf-8').lower(), unicode(y, 'utf-8').lower()))
-    rows = []
-    rows.append(H2(T('Original/Translation')))
-
+    rows = [H2(T('Original/Translation'))]
     for key in keys:
         name = md5_hash(key)
         s = strings[key]
@@ -992,7 +973,7 @@ def edit_language():
     rows.append(DIV(INPUT(_type='submit', _value=T('update'), _class="btn btn-primary"), _class='controls'))
     form = FORM(*rows)
     if form.accepts(request.vars, keepvalues=True):
-        strs = dict()
+        strs = {}
         for key in keys:
             name = md5_hash(key)
             if form.vars[name] == chr(127):
@@ -1042,7 +1023,7 @@ def edit_plurals():
 
     form = FORM(tab_container)
     if form.accepts(request.vars, keepvalues=True):
-        new_plurals = dict()
+        new_plurals = {}
         for key in keys:
             name = md5_hash(key)
             if form.vars[name + '_0'] == chr(127):
@@ -1517,7 +1498,7 @@ def files_menu():
 
 def upload_file():
     """ File uploading handler """
-    if request.vars and not request.vars.token == session.token:
+    if request.vars and request.vars.token != session.token:
         redirect(URL('logout'))
     try:
         filename = None
@@ -1529,19 +1510,19 @@ def upload_file():
         else:
             filename = os.path.split(request.vars.file.filename)[-1]
 
-        if path[-8:] == '/models/' and not filename[-3:] == '.py':
+        if path[-8:] == '/models/' and filename[-3:] != '.py':
             filename += '.py'
 
-        if path[-9:] == '/modules/' and not filename[-3:] == '.py':
+        if path[-9:] == '/modules/' and filename[-3:] != '.py':
             filename += '.py'
 
-        if path[-13:] == '/controllers/' and not filename[-3:] == '.py':
+        if path[-13:] == '/controllers/' and filename[-3:] != '.py':
             filename += '.py'
 
-        if path[-7:] == '/views/' and not filename[-5:] == '.html':
+        if path[-7:] == '/views/' and filename[-5:] != '.html':
             filename += '.html'
 
-        if path[-11:] == '/languages/' and not filename[-3:] == '.py':
+        if path[-11:] == '/languages/' and filename[-3:] != '.py':
             filename += '.py'
 
         filename = os.path.join(path, filename)
@@ -1736,9 +1717,9 @@ def make_link(path):
         app = get_app()
 
         editable = {'controllers': '.py', 'models': '.py', 'views': '.html'}
-        for key in editable.keys():
+        for key, value in editable.items():
             check_extension = folder.endswith("%s/%s" % (app, key))
-            if ext.lower() == editable[key] and check_extension:
+            if ext.lower() == value and check_extension:
                 return A('"' + tryFile + '"',
                          _href=URL(r=request,
                                    f='edit/%s/%s/%s' % (app, key, filename))).xml()
@@ -1765,9 +1746,9 @@ def make_links(traceback):
 
             if i + 1 < len(lwords):
                 result += lwords[i + 1]
-                i = i + 1
+                i += 1
 
-        i = i + 1
+        i += 1
 
     return result
 
@@ -1977,7 +1958,7 @@ def install_plugin():
     if not (source and app):
         raise HTTP(500, T("Invalid request"))
     # make sure no XSS attacks in source
-    if not source.lower().split('://')[0] in ('http','https'):
+    if source.lower().split('://')[0] not in ('http', 'https'):
         raise HTTP(500, T("Invalid request"))
     form = SQLFORM.factory()
     result = None

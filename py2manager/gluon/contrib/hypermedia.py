@@ -44,21 +44,18 @@ class Collection(object):
     def row2data(self,table,row,text=False):
         """ converts a DAL Row object into a collection.item """
         data = []
-        if self.compact:
-            for fieldname in (self.table_policy.get('fields',table.fields)):
-                field = table[fieldname]
-                if not ((field.type=='text' and text==False) or
-                        field.type=='blob' or
-                        field.type.startswith('reference ') or
-                        field.type.startswith('list:reference ')) and field.name in row:
+        for fieldname in (self.table_policy.get('fields',table.fields)):
+            field = table[fieldname]
+            if (
+                (field.type != 'text' or text != False)
+                and field.type != 'blob'
+                and not field.type.startswith('reference ')
+                and not field.type.startswith('list:reference ')
+                and field.name in row
+            ):
+                if self.compact:
                     data.append(row[field.name])
-        else:
-            for fieldname in (self.table_policy.get('fields',table.fields)):
-                field = table[fieldname]
-                if not ((field.type=='text' and text==False) or
-                        field.type=='blob' or
-                        field.type.startswith('reference ') or
-                        field.type.startswith('list:reference ')) and field.name in row:
+                else:
                     data.append({'name':field.name,'value':row[field.name],
                                  'prompt':field.label, 'type':field.type})
         return data

@@ -171,8 +171,6 @@ class Connection(object):
                 info = sys.exc_info()
                 if info[1].args[0] != socket.EBADF:
                     raise info[1]
-                else:
-                    pass
         self.socket.close()
 
 # Monolithic build...end of module: rocket/connection.py
@@ -236,7 +234,6 @@ class FileLikeSocket(object):
 
             self.buffer = StringIO()
 
-            return bufr.getvalue()
         else:
             buf_len = self.buffer.tell()
             if buf_len >= size:
@@ -266,15 +263,12 @@ class FileLikeSocket(object):
                 buf_len += n
                 del data
 
-            return bufr.getvalue()
+
+        return bufr.getvalue()
 
     def blocking_read(self, length=None):
         if length is None:
-            if self.content_length is not None:
-                length = self.content_length
-            else:
-                length = 1
-
+            length = self.content_length if self.content_length is not None else 1
         try:
             data = self.conn.recv(length)
         except:
@@ -382,7 +376,7 @@ class WSGIExecutor(ThreadPoolExecutor):
     def __init__(self, *args, **kwargs):
         ThreadPoolExecutor.__init__(self, *args, **kwargs)
 
-        self.futures = dict()
+        self.futures = {}
 
     def submit(self, fn, *args, **kwargs):
         if self._shutdown_lock.acquire():
@@ -648,11 +642,7 @@ class Rocket(object):
         self.startstop_lock = Lock()
         self.timeout = timeout
 
-        if not isinstance(interfaces, list):
-            self.interfaces = [interfaces]
-        else:
-            self.interfaces = interfaces
-
+        self.interfaces = interfaces if isinstance(interfaces, list) else [interfaces]
         if min_threads is None:
             min_threads = DEFAULTS['MIN_THREADS']
 
@@ -860,7 +850,7 @@ class Monitor(Thread):
 
     def run(self):
         self.active = True
-        conn_list = list()
+        conn_list = []
         list_changed = False
 
         # We need to make sure the queue is empty before we start
@@ -952,6 +942,8 @@ class Monitor(Thread):
                     if (now - c.start_time) >= self.timeout:
                         stale.add(c)
 
+                list_changed = True
+
                 for c in stale:
                     if __debug__:
                         # "EXPR and A or B" kept for Py2.4 compatibility
@@ -961,8 +953,6 @@ class Monitor(Thread):
                             'Flushing stale connection: %s:%i%s' % data)
 
                     self.connections.remove(c)
-                    list_changed = True
-
                     try:
                         c.close()
                     finally:
@@ -1045,7 +1035,7 @@ class ThreadPool:
         self.grow_threshold = int(max_threads / 10) + 2
 
         if not isinstance(app_info, dict):
-            app_info = dict()
+            app_info = {}
 
         if has_futures and app_info.get('futures'):
             app_info['executor'] = WSGIExecutor(max([DEFAULTS['MIN_THREADS'],
@@ -1127,7 +1117,7 @@ class ThreadPool:
         if __debug__:
             log.debug("Growing by %i." % amount)
 
-        for x in range(amount):
+        for _ in range(amount):
             worker = self.worker_class(self.app_info,
                                        self.active_queue,
                                        self.monitor_queue)
@@ -1142,27 +1132,28 @@ class ThreadPool:
 
         self.check_for_dead_threads += amount
 
-        for x in range(amount):
+        for _ in range(amount):
             self.active_queue.put(None)
 
     def dynamic_resize(self):
-        if (self.max_threads > self.min_threads or self.max_threads == 0):
-            if self.check_for_dead_threads > 0:
-                self.bring_out_your_dead()
+        if self.max_threads <= self.min_threads and self.max_threads != 0:
+            return
+        if self.check_for_dead_threads > 0:
+            self.bring_out_your_dead()
 
-            queueSize = self.active_queue.qsize()
-            threadCount = len(self.threads)
+        queueSize = self.active_queue.qsize()
+        threadCount = len(self.threads)
 
-            if __debug__:
-                log.debug("Examining ThreadPool. %i threads and %i Q'd conxions"
-                          % (threadCount, queueSize))
+        if __debug__:
+            log.debug("Examining ThreadPool. %i threads and %i Q'd conxions"
+                      % (threadCount, queueSize))
 
-            if queueSize == 0 and threadCount > self.min_threads:
-                self.shrink()
+        if queueSize == 0 and threadCount > self.min_threads:
+            self.shrink()
 
-            elif queueSize > self.grow_threshold:
+        elif queueSize > self.grow_threshold:
 
-                self.grow(queueSize)
+            self.grow(queueSize)
 
 # Monolithic build...end of module: rocket/threadpool.py
 # Monolithic build...start of module: rocket/worker.py
@@ -1261,9 +1252,8 @@ class Worker(Thread):
         self.err_log.addHandler(NullHandler())
 
     def _handleError(self, typ, val, tb):
-        if typ == SSLError:
-            if 'timed out' in str(val.args[0]):
-                typ = SocketTimeout
+        if typ == SSLError and 'timed out' in str(val.args[0]):
+            typ = SocketTimeout
         if typ == SocketTimeout:
             if __debug__:
                 self.err_log.debug('Socket timed out')
@@ -1285,14 +1275,12 @@ class Worker(Thread):
                 if __debug__:
                     self.err_log.debug('Ignorable socket Error received...'
                                        'closing connection.')
-                return False
             else:
                 self.status = "999 Utter Server Failure"
                 tb_fmt = traceback.format_exception(typ, val, tb)
                 self.err_log.error('Unhandled Error when serving '
                                    'connection:\n' + '\n'.join(tb_fmt))
-                return False
-
+            return False
         self.closeConnection = True
         tb_fmt = traceback.format_exception(typ, val, tb)
         self.err_log.error('\n'.join(tb_fmt))
@@ -1479,7 +1467,7 @@ class Worker(Thread):
 
     def read_headers(self, sock_file):
         try:
-            headers = dict()
+            headers = {}
             lname = None
             lval = None
             while True:
@@ -1699,11 +1687,11 @@ class WSGIWorker(Worker):
         self.chunked = h_set.get('Transfer-Encoding', '').lower() == 'chunked'
 
         # Add a Date header if it's not there already
-        if not 'Date' in h_set:
+        if 'Date' not in h_set:
             h_set['Date'] = formatdate(usegmt=True)
 
         # Add a Server header if it's not there already
-        if not 'Server' in h_set:
+        if 'Server' not in h_set:
             h_set['Server'] = HTTP_SERVER_SOFTWARE
 
         if 'Content-Length' in h_set:
@@ -1729,10 +1717,7 @@ class WSGIWorker(Worker):
             client_conn = self.environ.get('HTTP_CONNECTION', '').lower()
             if self.environ['SERVER_PROTOCOL'] == 'HTTP/1.1':
                 # HTTP = 1.1 defaults to keep-alive connections
-                if client_conn:
-                    h_set['Connection'] = client_conn
-                else:
-                    h_set['Connection'] = 'keep-alive'
+                h_set['Connection'] = client_conn if client_conn else 'keep-alive'
             else:
                 # HTTP < 1.1 supports keep-alive but it's quirky
                 # so we don't support it

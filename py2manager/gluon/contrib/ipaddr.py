@@ -734,7 +734,7 @@ class _BaseNet(_IPAddrBase):
             ValueError: If other is not completely contained by self.
 
         """
-        if not self._version == other._version:
+        if self._version != other._version:
             raise TypeError("%s and %s are not of the same version" % (
                 str(self), str(other)))
 
@@ -1349,10 +1349,9 @@ class IPv4Network(_BaseV4, _BaseNet):
 
         self.netmask = IPv4Address(self._ip_int_from_prefix(self._prefixlen))
 
-        if strict:
-            if self.ip != self.network:
-                raise ValueError('%s has host bits set' %
-                                 self.ip)
+        if strict and self.ip != self.network:
+            raise ValueError('%s has host bits set' %
+                             self.ip)
         if self._prefixlen == (self._max_prefixlen - 1):
             self.iterhosts = self.__iter__
 
@@ -1549,10 +1548,7 @@ class _BaseV6(object):
             raise ValueError('IPv6 address is too large')
 
         hex_str = '%032x' % ip_int
-        hextets = []
-        for x in range(0, 32, 4):
-            hextets.append('%x' % int(hex_str[x:x+4], 16))
-
+        hextets = ['%x' % int(hex_str[x:x+4], 16) for x in range(0, 32, 4)]
         hextets = self._compress_hextets(hextets)
         return ':'.join(hextets)
 
@@ -1566,14 +1562,10 @@ class _BaseV6(object):
             A string, the expanded IPv6 address.
 
         """
-        if isinstance(self, _BaseNet):
-            ip_str = str(self.ip)
-        else:
-            ip_str = str(self)
-
+        ip_str = str(self.ip) if isinstance(self, _BaseNet) else str(self)
         ip_int = self._ip_int_from_string(ip_str)
         parts = []
-        for i in xrange(self._HEXTET_COUNT):
+        for _ in xrange(self._HEXTET_COUNT):
             parts.append('%04x' % (ip_int & 0xFFFF))
             ip_int >>= 16
         parts.reverse()
@@ -1853,10 +1845,9 @@ class IPv6Network(_BaseV6, _BaseNet):
 
         self.netmask = IPv6Address(self._ip_int_from_prefix(self._prefixlen))
 
-        if strict:
-            if self.ip != self.network:
-                raise ValueError('%s has host bits set' %
-                                 self.ip)
+        if strict and self.ip != self.network:
+            raise ValueError('%s has host bits set' %
+                             self.ip)
         if self._prefixlen == (self._max_prefixlen - 1):
             self.iterhosts = self.__iter__
 

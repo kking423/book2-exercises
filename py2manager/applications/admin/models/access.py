@@ -132,7 +132,6 @@ def failed_login_count():
 
 t0 = time.time()
 if session.authorized:
-
     if session.last_time and session.last_time < t0 - EXPIRATION:
         session.flash = T('session expired')
         session.authorized = False
@@ -142,9 +141,12 @@ if session.authorized:
 
 if request.vars.is_mobile in ('true', 'false', 'auto'):
     session.is_mobile = request.vars.is_mobile or 'auto'
-if request.controller == 'default' and request.function == 'index':
-    if not request.vars.is_mobile:
-        session.is_mobile = 'auto'
+if (
+    request.controller == 'default'
+    and request.function == 'index'
+    and not request.vars.is_mobile
+):
+    session.is_mobile = 'auto'
 if not session.is_mobile:
     session.is_mobile = 'auto'
 if session.is_mobile == 'true':
@@ -160,7 +162,7 @@ if DEMO_MODE:
 
 if request.controller == "webservices":
     basic = request.env.http_authorization
-    if not basic or not basic[:6].lower() == 'basic ':
+    if not basic or basic[:6].lower() != 'basic ':
         raise HTTP(401, "Wrong credentials")
     (username, password) = base64.b64decode(basic[6:]).split(':')
     if not verify_password(password) or MULTI_USER_MODE:

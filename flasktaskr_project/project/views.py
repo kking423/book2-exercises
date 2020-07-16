@@ -51,9 +51,9 @@ def index(page):
 def page_not_found(error):
     if app.debug is not True:
         now = datetime.datetime.now()
-        r = request.url
         with open('error.log', 'a') as f:
             current_timestamp = now.strftime("%d-%m-%Y %H:%M:%S")
+            r = request.url
             f.write("\n404 error at {}: {} ".format(current_timestamp, r))
     return render_template('404.html'), 404
 
@@ -62,9 +62,9 @@ def page_not_found(error):
 def internal_error(error):
     if app.debug is not True:
         now = datetime.datetime.now()
-        r = request.url
         with open('error.log', 'a') as f:
             current_timestamp = now.strftime("%d-%m-%Y %H:%M:%S")
+            r = request.url
             f.write("\n500 error at {}: {} ".format(current_timestamp, r))
     return render_template('500.html'), 500
 

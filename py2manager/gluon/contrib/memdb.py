@@ -156,7 +156,7 @@ class MEMDB(DALStorage):
         tablename = cleanup(tablename)
         if tablename in dir(self) or tablename[0] == '_':
             raise SyntaxError('invalid table name: %s' % tablename)
-        if not tablename in self.tables:
+        if tablename not in self.tables:
             self.tables.append(tablename)
         else:
             raise SyntaxError('table already defined: %s' % tablename)
@@ -212,9 +212,8 @@ class Table(DALStorage):
         for k in self.fields:
             field = self[k]
             attr = {}
-            if not field.type[:9] in ['id', 'reference']:
-                if field.notnull:
-                    attr = dict(required=True)
+            if field.type[:9] not in ['id', 'reference'] and field.notnull:
+                attr = dict(required=True)
             if field.type[:2] == 'id':
                 continue
             if field.type[:9] == 'reference':
@@ -222,7 +221,7 @@ class Table(DALStorage):
                 if not referenced:
                     raise SyntaxError('Table %s: reference \'%s\' to nothing!' % (
                         self._tablename, k))
-                if not referenced in self._db:
+                if referenced not in self._db:
                     raise SyntaxError(
                         'Table: table %s does not exist' % referenced)
                 referee = self._db[referenced]
@@ -235,8 +234,10 @@ class Table(DALStorage):
                                           self._tablename, referenced))
                 self._db[referenced]._referenced_by.append((self._tablename,
                                                             field.name))
-            elif not field.type in self._db._translator\
-                    or not self._db._translator[field.type]:
+            elif (
+                field.type not in self._db._translator
+                or not self._db._translator[field.type]
+            ):
                 raise SyntaxError('Field: unknown field type %s' % field.type)
         self._tableobj = self._db.client
         return None
@@ -256,7 +257,7 @@ class Table(DALStorage):
 
     def insert(self, **fields):
         # Checks 3 times that the id is new. 3 times is enough!
-        for i in range(3):
+        for _ in range(3):
             id = self._create_id()
             if self.get(id) is None and self.update(id, **fields):
                 return long(id)
@@ -272,8 +273,7 @@ class Table(DALStorage):
 
     def update(self, id, **fields):
         for field in fields:
-            if not field in fields and self[field].default\
-                    is not None:
+            if field not in fields and self[field].default is not None:
                 fields[field] = self[field].default
             if field in fields:
                 fields[field] = obj_represent(fields[field],
@@ -444,10 +444,7 @@ def obj_represent(object, fieldtype, db):
             object = datetime.date(y, m, d)
         elif fieldtype == 'time' and not isinstance(object, datetime.time):
             time_items = [int(x) for x in str(object).strip().split(':')[:3]]
-            if len(time_items) == 3:
-                (h, mi, s) = time_items
-            else:
-                (h, mi, s) = time_items + [0]
+            (h, mi, s) = time_items if len(time_items) == 3 else time_items + [0]
             object = datetime.time(h, mi, s)
         elif fieldtype == 'datetime' and not isinstance(object,
                                                         datetime.datetime):
@@ -455,10 +452,7 @@ def obj_represent(object, fieldtype, db):
                          str(object)[:10].strip().split('-')]
             time_items = [int(x) for x in
                           str(object)[11:].strip().split(':')[:3]]
-            if len(time_items) == 3:
-                (h, mi, s) = time_items
-            else:
-                (h, mi, s) = time_items + [0]
+            (h, mi, s) = time_items if len(time_items) == 3 else time_items + [0]
             object = datetime.datetime(
                 y,
                 m,
@@ -670,13 +664,13 @@ class Rows(object):
             try:
                 (tablename, fieldname) = packed
             except:
-                if not '_extra' in row:
+                if '_extra' not in row:
                     row['_extra'] = DALStorage()
                 row['_extra'][self.colnames[j]] = value
                 continue
             table = self._db[tablename]
             field = table[fieldname]
-            if not tablename in row:
+            if tablename not in row:
                 row[tablename] = DALStorage()
             if field.type[:9] == 'reference':
                 referee = field.type[10:].strip()
@@ -686,10 +680,7 @@ class Rows(object):
 
                 # row[tablename][fieldname]=Set(self._db[referee].id==rid)
 
-                if value == True or value == 'T':
-                    row[tablename][fieldname] = True
-                else:
-                    row[tablename][fieldname] = False
+                row[tablename][fieldname] = True if value in [True, 'T'] else False
             elif field.type == 'date' and value is not None\
                     and not isinstance(value, datetime.date):
                 (y, m, d) = [int(x) for x in
@@ -699,10 +690,7 @@ class Rows(object):
                     and not isinstance(value, datetime.time):
                 time_items = [int(x) for x in
                               str(value).strip().split(':')[:3]]
-                if len(time_items) == 3:
-                    (h, mi, s) = time_items
-                else:
-                    (h, mi, s) = time_items + [0]
+                (h, mi, s) = time_items if len(time_items) == 3 else time_items + [0]
                 row[tablename][fieldname] = datetime.time(h, mi, s)
             elif field.type == 'datetime' and value is not None\
                     and not isinstance(value, datetime.datetime):
@@ -710,10 +698,7 @@ class Rows(object):
                              str(value)[:10].strip().split('-')]
                 time_items = [int(x) for x in
                               str(value)[11:].strip().split(':')[:3]]
-                if len(time_items) == 3:
-                    (h, mi, s) = time_items
-                else:
-                    (h, mi, s) = time_items + [0]
+                (h, mi, s) = time_items if len(time_items) == 3 else time_items + [0]
                 row[tablename][fieldname] = datetime.datetime(
                     y,
                     m,

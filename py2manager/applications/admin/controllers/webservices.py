@@ -26,8 +26,7 @@ def login():
 def list_apps():
     "list installed applications"
     regex = re.compile('^\w+$')
-    apps = [f for f in os.listdir(apath(r=request)) if regex.match(f)]
-    return apps
+    return [f for f in os.listdir(apath(r=request)) if regex.match(f)]
 
 
 @service.jsonrpc
@@ -42,10 +41,7 @@ def read_file(filename, b64=False):
     f = open(apath(filename, r=request), "rb")
     try:
         data = f.read()
-        if not b64:
-            data = data.replace('\r', '')
-        else:
-            data = base64.b64encode(data)
+        data = data.replace('\r', '') if not b64 else base64.b64encode(data)
     finally:
         f.close()
     return data
@@ -77,10 +73,8 @@ def hash_file(filename):
 @service.jsonrpc
 def install(app_name, filename, data, overwrite=True):
     f = StringIO(base64.b64decode(data))
-    installed = app_install(app_name, f, request, filename,
+    return app_install(app_name, f, request, filename,
                             overwrite=overwrite)
-
-    return installed
 
 
 @service.jsonrpc

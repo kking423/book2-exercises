@@ -182,12 +182,10 @@ class IS_MATCH(Validator):
                  strict=False, search=False, extract=False,
                  is_unicode=False):
 
-        if strict or not search:
-            if not expression.startswith('^'):
-                expression = '^(%s)' % expression
-        if strict:
-            if not expression.endswith('$'):
-                expression = '(%s)$' % expression
+        if (strict or not search) and not expression.startswith('^'):
+            expression = '^(%s)' % expression
+        if strict and not expression.endswith('$'):
+            expression = '(%s)$' % expression
         if is_unicode:
             if not isinstance(expression, unicode):
                 expression = expression.decode('utf8')
@@ -329,10 +327,7 @@ class IS_LENGTH(Validator):
                 value.file.seek(0, os.SEEK_SET)
             elif hasattr(value, 'value'):
                 val = value.value
-                if val:
-                    length = len(val)
-                else:
-                    length = 0
+                length = len(val) if val else 0
             if self.minsize <= length <= self.maxsize:
                 return (value, None)
         elif isinstance(value, str):
@@ -453,7 +448,7 @@ class IS_IN_SET(Validator):
             items = [(k, self.labels[i]) for (i, k) in enumerate(self.theset)]
         if self.sort:
             items.sort(options_sorter)
-        if zero and not self.zero is None and not self.multiple:
+        if zero and self.zero is not None and not self.multiple:
             items.insert(0, ('', self.zero))
         return items
 
@@ -514,11 +509,7 @@ class IS_IN_DB(Validator):
         auto_add=False,
     ):
         from pydal.objects import Table
-        if hasattr(dbset, 'define_table'):
-            self.dbset = dbset()
-        else:
-            self.dbset = dbset
-
+        self.dbset = dbset() if hasattr(dbset, 'define_table') else dbset
         if isinstance(field, Table):
             field = field._id
         elif isinstance(field, str):
@@ -583,9 +574,10 @@ class IS_IN_DB(Validator):
                       cacheable=True, left=left)
             records = self.dbset(table).select(*fields, **dd)
         else:
-            orderby = self.orderby or \
-                reduce(lambda a, b: a | b, (
-                    f for f in fields if not f.name == 'id'))
+            orderby = self.orderby or reduce(
+                lambda a, b: a | b, (f for f in fields if f.name != 'id')
+            )
+
             dd = dict(orderby=orderby, cache=self.cache, cacheable=True)
             records = self.dbset(table).select(table.ALL, **dd)
         self.theset = [str(r[self.kfield]) for r in records]
@@ -707,10 +699,7 @@ class IS_NOT_IN_DB(Validator):
         if isinstance(field, Table):
             field = field._id
 
-        if hasattr(dbset, 'define_table'):
-            self.dbset = dbset()
-        else:
-            self.dbset = dbset
+        self.dbset = dbset() if hasattr(dbset, 'define_table') else dbset
         self.field = field
         self.error_message = error_message
         self.record_id = 0
@@ -721,10 +710,7 @@ class IS_NOT_IN_DB(Validator):
         self.record_id = id
 
     def __call__(self, value):
-        if isinstance(value, unicode):
-            value = value.encode('utf8')
-        else:
-            value = str(value)
+        value = value.encode('utf8') if isinstance(value, unicode) else str(value)
         if not value.strip():
             return (value, translate(self.error_message))
         if value in self.allowed_override:
@@ -824,10 +810,7 @@ class IS_INT_IN_RANGE(Validator):
 
 def str2dec(number):
     s = str(number)
-    if not '.' in s:
-        s += '.00'
-    else:
-        s += '0' * (2 - len(s.split('.')[1]))
+    s += '.00' if '.' not in s else '0' * (2 - len(s.split('.')[1]))
     return s
 
 
@@ -1035,10 +1018,7 @@ class IS_NOT_EMPTY(Validator):
 
     def __init__(self, error_message='Enter a value', empty_regex=None):
         self.error_message = error_message
-        if empty_regex is not None:
-            self.empty_regex = re.compile(empty_regex)
-        else:
-            self.empty_regex = None
+        self.empty_regex = re.compile(empty_regex) if empty_regex is not None else None
 
     def __call__(self, value):
         value, empty = is_empty(value, empty_regex=self.empty_regex)
@@ -1233,7 +1213,7 @@ class IS_LIST_OF_EMAILS(object):
         f = IS_EMAIL()
         for email in self.split_emails.findall(value):
             error = f(email)[1]
-            if error and not email in bad_emails:
+            if error and email not in bad_emails:
                 bad_emails.append(email)
         if not bad_emails:
             return (value, None)
@@ -1525,10 +1505,7 @@ def unicode_to_ascii_url(url, prepend_scheme):
     query = groups[5] or ''
     fragment = groups[7] or ''
 
-    if prepend_scheme:
-        scheme = str(scheme) + '://'
-    else:
-        scheme = ''
+    scheme = str(scheme) + '://' if prepend_scheme else ''
     return scheme + unicode_to_ascii_authority(authority) +\
         escape_unicode(path) + escape_unicode(query) + str(fragment)
 
@@ -2112,7 +2089,7 @@ class IS_URL(Validator):
 
             methodResult = subMethod(asciiValue)
             # if the validation of the US-ASCII version of the value failed
-            if not methodResult[1] is None:
+            if methodResult[1] is not None:
                 # then return the original input value, not the US-ASCII version
                 return (value, methodResult[1])
             else:
@@ -2174,16 +2151,15 @@ class IS_TIME(Validator):
             ivalue = value
             value = regex_time.match(value.lower())
             (h, m, s) = (int(value.group('h')), 0, 0)
-            if not value.group('m') is None:
+            if value.group('m') is not None:
                 m = int(value.group('m'))
-            if not value.group('s') is None:
+            if value.group('s') is not None:
                 s = int(value.group('s'))
             if value.group('d') == 'pm' and 0 < h < 12:
                 h += 12
             if value.group('d') == 'am' and h == 12:
                 h = 0
-            if not (h in range(24) and m in range(60) and s
-                    in range(60)):
+            if h not in range(24) or m not in range(60) or s not in range(60):
                 raise ValueError('Hours or minutes or seconds are outside of allowed range')
             value = datetime.time(h, m, s)
             return (value, None)
@@ -2455,7 +2431,7 @@ class IS_LIST_OF(Validator):
             return (ivalue, translate(self.error_message) % dict(min=self.minimum, max=self.maximum))
         new_value = []
         other = self.other
-        if self.other:
+        if other:
             if not isinstance(other, (list, tuple)):
                 other = [other]
             for item in ivalue:
@@ -2604,7 +2580,7 @@ class ANY_OF(Validator):
     def __call__(self, value):
         for validator in self.subs:
             value, error = validator(value)
-            if error == None:
+            if error is None:
                 break
         return value, error
 
@@ -2636,10 +2612,7 @@ class IS_EMPTY_OR(Validator):
 
     def __init__(self, other, null=None, empty_regex=None):
         (self.other, self.null) = (other, null)
-        if empty_regex is not None:
-            self.empty_regex = re.compile(empty_regex)
-        else:
-            self.empty_regex = None
+        self.empty_regex = re.compile(empty_regex) if empty_regex is not None else None
         if hasattr(other, 'multiple'):
             self.multiple = other.multiple
         if hasattr(other, 'options'):
@@ -2766,10 +2739,7 @@ class LazyCrypt(object):
                      (self.password == stored_password.password)))
 
         if self.crypt.key:
-            if ':' in self.crypt.key:
-                key = self.crypt.key.split(':')[1]
-            else:
-                key = self.crypt.key
+            key = self.crypt.key.split(':')[1] if ':' in self.crypt.key else self.crypt.key
         else:
             key = ''
         if stored_password is None:
@@ -2980,7 +2950,6 @@ class IS_STRONG(object):
         if entropy is None:
             # enforce default requirements
             self.min = 8 if min is None else min
-            self.max = max  # was 20, but that doesn't make sense
             self.upper = 1 if upper is None else upper
             self.lower = 1 if lower is None else lower
             self.number = 1 if number is None else number
@@ -2988,11 +2957,11 @@ class IS_STRONG(object):
         else:
             # by default, an entropy spec is exclusive
             self.min = min
-            self.max = max
             self.upper = upper
             self.lower = lower
             self.number = number
             self.special = special
+        self.max = max  # was 20, but that doesn't make sense
         self.specials = specials
         self.invalid = invalid
         self.error_message = error_message
@@ -3007,18 +2976,15 @@ class IS_STRONG(object):
             if entropy < self.entropy:
                 failures.append(translate("Entropy (%(have)s) less than required (%(need)s)")
                                 % dict(have=entropy, need=self.entropy))
-        if type(self.min) == int and self.min > 0:
-            if not len(value) >= self.min:
-                failures.append(translate("Minimum length is %s") % self.min)
-        if type(self.max) == int and self.max > 0:
-            if not len(value) <= self.max:
-                failures.append(translate("Maximum length is %s") % self.max)
+        if type(self.min) == int and self.min > 0 and not len(value) >= self.min:
+            failures.append(translate("Minimum length is %s") % self.min)
+        if type(self.max) == int and self.max > 0 and not len(value) <= self.max:
+            failures.append(translate("Maximum length is %s") % self.max)
         if type(self.special) == int:
             all_special = [ch in value for ch in self.specials]
-            if self.special > 0:
-                if not all_special.count(True) >= self.special:
-                    failures.append(translate("Must include at least %s of the following: %s")
-                                    % (self.special, self.specials))
+            if self.special > 0 and not all_special.count(True) >= self.special:
+                failures.append(translate("Must include at least %s of the following: %s")
+                                % (self.special, self.specials))
         if self.invalid:
             all_invalid = [ch in value for ch in self.invalid]
             if all_invalid.count(True) > 0:
@@ -3056,7 +3022,7 @@ class IS_STRONG(object):
             else:
                 if len(all_number) > 0:
                     failures.append(translate("May not include any numbers"))
-        if len(failures) == 0:
+        if not failures:
             return (value, None)
         if not self.error_message:
             if self.estring:
@@ -3237,10 +3203,7 @@ class IS_UPLOAD_FILENAME(Validator):
             string = string.lower()
         elif self.case == 2:
             string = string.upper()
-        if self.lastdot:
-            dot = string.rfind('.')
-        else:
-            dot = string.find('.')
+        dot = string.rfind('.') if self.lastdot else string.find('.')
         if dot == -1:
             dot = len(string)
         if self.filename and not self.filename.match(string[:dot]):
@@ -3381,9 +3344,7 @@ class IS_IPV4(Validator):
                             temp.append(item)
             numbers = []
             for item in temp:
-                number = 0
-                for i, j in zip(self.numbers, item):
-                    number += i * int(j)
+                number = sum(i * int(j) for i, j in zip(self.numbers, item))
                 numbers.append(number)
             if n == 0:
                 self.minip = numbers
@@ -3397,22 +3358,27 @@ class IS_IPV4(Validator):
 
     def __call__(self, value):
         if self.regex.match(value):
-            number = 0
-            for i, j in zip(self.numbers, value.split('.')):
-                number += i * int(j)
-            ok = False
-            for bottom, top in zip(self.minip, self.maxip):
-                if self.invert != (bottom <= number <= top):
-                    ok = True
-            if not (self.is_localhost is None or self.is_localhost ==
-                    (number == self.localhost)):
+            number = sum(i * int(j) for i, j in zip(self.numbers, value.split('.')))
+            ok = any(
+                self.invert != (bottom <= number <= top)
+                for bottom, top in zip(self.minip, self.maxip)
+            )
+
+            if self.is_localhost is not None and self.is_localhost != (
+                number == self.localhost
+            ):
                 ok = False
-            if not (self.is_private is None or self.is_private ==
-                    (sum([private_number[0] <= number <= private_number[1]
-                          for private_number in self.private]) > 0)):
+            if self.is_private is not None and self.is_private != (
+                sum(
+                    private_number[0] <= number <= private_number[1]
+                    for private_number in self.private
+                )
+                > 0
+            ):
                 ok = False
-            if not (self.is_automatic is None or self.is_automatic ==
-                    (self.automatic[0] <= number <= self.automatic[1])):
+            if self.is_automatic is not None and self.is_automatic != (
+                self.automatic[0] <= number <= self.automatic[1]
+            ):
                 ok = False
             if ok:
                 return (value, None)
@@ -3538,23 +3504,20 @@ class IS_IPV6(Validator):
             self.is_reserved = False
             self.is_multicast = False
 
-        if not (self.is_private is None or self.is_private ==
-                ip.is_private):
+        if self.is_private is not None and self.is_private != ip.is_private:
             ok = False
-        if not (self.is_link_local is None or self.is_link_local ==
-                ip.is_link_local):
+        if (
+            self.is_link_local is not None
+            and self.is_link_local != ip.is_link_local
+        ):
             ok = False
-        if not (self.is_reserved is None or self.is_reserved ==
-                ip.is_reserved):
+        if self.is_reserved is not None and self.is_reserved != ip.is_reserved:
             ok = False
-        if not (self.is_multicast is None or self.is_multicast ==
-                ip.is_multicast):
+        if self.is_multicast is not None and self.is_multicast != ip.is_multicast:
             ok = False
-        if not (self.is_6to4 is None or self.is_6to4 ==
-                ip.is_6to4):
+        if self.is_6to4 is not None and self.is_6to4 != ip.is_6to4:
             ok = False
-        if not (self.is_teredo is None or self.is_teredo ==
-                ip.is_teredo):
+        if self.is_teredo is not None and self.is_teredo != ip.is_teredo:
             ok = False
 
         if ok:
@@ -3747,9 +3710,16 @@ class IS_IPADDRESS(Validator):
         except ValueError:
             return (value, translate(self.error_message))
 
-        if self.is_ipv4 and isinstance(ip, IPv6Address):
-            retval = (value, translate(self.error_message))
-        elif self.is_ipv6 and isinstance(ip, IPv4Address):
+        if (
+            self.is_ipv4
+            and isinstance(ip, IPv6Address)
+            or self.is_ipv6
+            and isinstance(ip, IPv4Address)
+            or not self.is_ipv4
+            and not isinstance(ip, IPv4Address)
+            and not self.is_ipv6
+            and not isinstance(ip, IPv6Address)
+        ):
             retval = (value, translate(self.error_message))
         elif self.is_ipv4 or isinstance(ip, IPv4Address):
             retval = IS_IPV4(
@@ -3761,7 +3731,7 @@ class IS_IPADDRESS(Validator):
                 is_automatic=self.is_automatic,
                 error_message=self.error_message
             )(value)
-        elif self.is_ipv6 or isinstance(ip, IPv6Address):
+        else:
             retval = IS_IPV6(
                 is_private=self.is_private,
                 is_link_local=self.is_link_local,
@@ -3773,7 +3743,4 @@ class IS_IPADDRESS(Validator):
                 subnets=self.subnets,
                 error_message=self.error_message
             )(value)
-        else:
-            retval = (value, translate(self.error_message))
-
         return retval

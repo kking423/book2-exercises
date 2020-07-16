@@ -45,9 +45,8 @@ def tasks():
 @login_required
 def new_task():
     import datetime
-    error = None
-    form = AddTaskForm(request.form)
     if request.method == 'POST':
+        form = AddTaskForm(request.form)
         if form.validate_on_submit():
             new_task = Task(
                 form.name.data,
@@ -62,6 +61,7 @@ def new_task():
             flash('New entry was successfully posted. Thanks.')
             return redirect(url_for('tasks.tasks'))
         else:
+            error = None
             return render_template('tasks.html', form=form, error=error)
 
 
@@ -75,10 +75,10 @@ def complete(task_id):
         task.update({"status": "0"})
         db.session.commit()
         flash('The task was marked as complete. Nice.')
-        return redirect(url_for('tasks.tasks'))
     else:
         flash('You can only update tasks that belong to you.')
-        return redirect(url_for('tasks.tasks'))
+
+    return redirect(url_for('tasks.tasks'))
 
 
 # Delete Tasks:
@@ -91,7 +91,7 @@ def delete_entry(task_id):
         task.delete()
         db.session.commit()
         flash('The task was deleted. Why not add a new one?')
-        return redirect(url_for('tasks.tasks'))
     else:
         flash('You can only delete tasks that belong to you.')
-        return redirect(url_for('tasks.tasks'))
+
+    return redirect(url_for('tasks.tasks'))

@@ -189,11 +189,7 @@ class JobGraph(object):
         """
         db = self.db
         sd = db.scheduler_task_deps
-        if job_name:
-            q = sd.job_name == job_name
-        else:
-            q = sd.id > 0
-
+        q = sd.job_name == job_name if job_name else sd.id > 0
         edges = db(q).select()
         nested_dict = {}
         for row in edges:
@@ -207,16 +203,14 @@ class JobGraph(object):
             for k, v in nested_dict.items():
                 v.discard(k)  # Ignore self dependencies
             extra_items_in_deps = reduce(set.union, nested_dict.values()) - set(nested_dict.keys())
-            nested_dict.update(dict((item, set()) for item in extra_items_in_deps))
+            nested_dict.update({item: set() for item in extra_items_in_deps})
             while True:
-                ordered = set(item for item, dep in nested_dict.items() if not dep)
+                ordered = {item for item, dep in nested_dict.items() if not dep}
                 if not ordered:
                     break
                 rtn.append(ordered)
-                nested_dict = dict(
-                    (item, (dep - ordered)) for item, dep in nested_dict.items()
-                    if item not in ordered
-                )
+                nested_dict = {item: dep - ordered for item, dep in nested_dict.items()
+                                if item not in ordered}
             assert not nested_dict, "A cyclic dependency exists amongst %r" % nested_dict
             db.commit()
             return rtn
@@ -766,9 +760,7 @@ class Scheduler(MetaScheduler):
         x = 0
         while x < 10:
             try:
-                rtn = self.pop_task(db)
-                return rtn
-                break
+                return self.pop_task(db)
             except:
                 self.w_stats.errors += 1
                 db.rollback()
@@ -1202,14 +1194,13 @@ class Scheduler(MetaScheduler):
             self.db(ws.worker_name == worker_name).update(status=action)
             return
         exclusion = exclude and exclude.append(action) or [action]
-        if not limit:
-            for group in group_names:
+        for group in group_names:
+            if not limit:
                 self.db(
                     (ws.group_names.contains(group)) &
                     (~ws.status.belongs(exclusion))
                 ).update(status=action)
-        else:
-            for group in group_names:
+            else:
                 workers = self.db((ws.group_names.contains(group)) &
                                   (~ws.status.belongs(exclusion))
                                   )._select(ws.id, limitby=(0, limit))

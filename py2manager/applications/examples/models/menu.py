@@ -25,8 +25,8 @@ def toggle_menuclass(cssclass='pressed', menuid='headermenu'):
         documentation='-520px -115px'
     )
 
-    if request.function in positions.keys():
-            jscript = """
+    if request.function in positions:
+        jscript = """
             <script>
              $(document).ready(function(){
                          $('.%(menuid)s a').removeClass('%(cssclass)s');
@@ -35,11 +35,11 @@ def toggle_menuclass(cssclass='pressed', menuid='headermenu'):
              });
             </script>
             """ % dict(cssclass=cssclass,
-                       menuid=menuid,
-                       function=request.function,
-                       cssposition=positions[request.function]
-                       )
+                   menuid=menuid,
+                   function=request.function,
+                   cssposition=positions[request.function]
+                   )
 
-            return XML(jscript)
+        return XML(jscript)
     else:
         return ''

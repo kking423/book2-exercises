@@ -16,7 +16,7 @@ if not settings.is_source:
     redirect(URL(request.application, 'default', 'site'))
 
 def deploy():
-    apps = sorted(file for file in os.listdir(apath(r=request)))
+    apps = sorted(iter(os.listdir(apath(r=request))))
     form = SQLFORM.factory(
         Field(
             'osrepo', default='/tmp', label=T('Path to local openshift repo root.'),
@@ -33,8 +33,7 @@ def deploy():
         except:
             pass
 
-        ignore_apps = [
-            item for item in apps if not item in form.vars.applications]
+        ignore_apps = [item for item in apps if item not in form.vars.applications]
         regex = re.compile('\(applications/\(.*')
         w2p_origin = os.getcwd()
         osrepo = form.vars.osrepo
@@ -55,7 +54,7 @@ def deploy():
         origin = repo.remotes.origin
         origin.push
         origin.push()
-        #Git code ends here
+            #Git code ends here
     return dict(form=form, command=cmd)
 
 

@@ -31,7 +31,7 @@ def _default_validators(db, field):
         requires.append(validators.IS_LENGTH(field_length))
     elif field_type == 'json':
         requires.append(validators.IS_EMPTY_OR(validators.IS_JSON()))
-    elif field_type == 'double' or field_type == 'float':
+    elif field_type in ['double', 'float']:
         requires.append(validators.IS_FLOAT_IN_RANGE(-1e100, 1e100))
     elif field_type == 'integer':
         requires.append(validators.IS_INT_IN_RANGE(-2**31, 2**31))
@@ -76,7 +76,7 @@ def _default_validators(db, field):
     if field.unique:
         requires.insert(0, validators.IS_NOT_IN_DB(db, field))
     excluded_fields = ['string', 'upload', 'text', 'password', 'boolean']
-    if (field.notnull or field.unique) and not field_type in excluded_fields:
+    if ((field.notnull or field.unique)) and field_type not in excluded_fields:
         requires.insert(0, validators.IS_NOT_EMPTY())
     elif not field.notnull and not field.unique and requires:
         requires[0] = validators.IS_EMPTY_OR(requires[0], null='' if field in ('string', 'text', 'password') else None)

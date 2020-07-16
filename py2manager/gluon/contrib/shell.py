@@ -124,10 +124,12 @@ class History:
             del self.globals[index]
 
     def globals_dict(self):
-        """Returns a dictionary view of the globals.
+       """Returns a dictionary view of the globals.
         """
-        return dict((name, pickle.loads(val))
-                    for name, val in zip(self.global_names, self.globals))
+       return {
+           name: pickle.loads(val)
+           for name, val in zip(self.global_names, self.globals)
+       }
 
     def add_unpicklable(self, statement, names):
         """Adds a statement and list of names to the unpicklables.

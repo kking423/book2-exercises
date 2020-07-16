@@ -85,7 +85,7 @@ def validators(*a):
     b = []
     for item in a:
         if isinstance(item, (list, tuple)):
-            b = b + list(item)
+            b += list(item)
         else:
             b.append(item)
     return b
@@ -413,7 +413,7 @@ class Mail(object):
         Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
 
         def encode_header(key):
-            if [c for c in key if 32 > ord(c) or ord(c) > 127]:
+            if [c for c in key if ord(c) < 32 or ord(c) > 127]:
                 return Header.Header(key.encode('utf-8'), 'utf-8')
             else:
                 return key
@@ -909,10 +909,7 @@ class Recaptcha(DIV):
         error_param = ''
         if self.error:
             error_param = '&error=%s' % self.error
-        if use_ssl:
-            server = self.API_SSL_SERVER
-        else:
-            server = self.API_SERVER
+        server = self.API_SSL_SERVER if use_ssl else self.API_SERVER
         if not self.ajax:
             captcha = DIV(
                 SCRIPT("var RecaptchaOptions = {%s};" % self.options),
@@ -950,11 +947,10 @@ class Recaptcha(DIV):
                         _type='hidden', _name='recaptcha_response_field',
                         _value='manual_challenge')), _id='recaptcha')
 
-        if not self.errors.captcha:
-            return XML(captcha).xml()
-        else:
+        if self.errors.captcha:
             captcha.append(DIV(self.errors['captcha'], _class='error'))
-            return XML(captcha).xml()
+
+        return XML(captcha).xml()
 
 
 class Recaptcha2(DIV):
@@ -1085,16 +1081,29 @@ class Recaptcha2(DIV):
 </div>""" % dict(public_key=public_key))
             )
         )
-        if not self.errors.captcha:
-            return XML(captcha).xml()
-        else:
+        if self.errors.captcha:
             captcha.append(DIV(self.errors['captcha'], _class='error'))
-            return XML(captcha).xml()
+
+        return XML(captcha).xml()
 
 
 # this should only be used for captcha and perhaps not even for that
 def addrow(form, a, b, c, style, _id, position=-1):
-    if style == "divs":
+    if style == "bootstrap":
+        form[0].insert(position, DIV(LABEL(a, _class='control-label'),
+                                     DIV(b, SPAN(c, _class='inline-help'),
+                                         _class='controls'),
+                                     _class='control-group', _id=_id))
+    elif style == "bootstrap3_inline":
+        form[0].insert(position, DIV(LABEL(a, _class='control-label col-sm-3'),
+                                     DIV(b, SPAN(c, _class='help-block'),
+                                         _class='col-sm-9'),
+                                     _class='form-group', _id=_id))
+    elif style == "bootstrap3_stacked":
+        form[0].insert(position, DIV(LABEL(a, _class='control-label'),
+                                     b, SPAN(c, _class='help-block'),
+                                     _class='form-group', _id=_id))
+    elif style == "divs":
         form[0].insert(position, DIV(DIV(LABEL(a), _class='w2p_fl'),
                                      DIV(b, _class='w2p_fw'),
                                      DIV(c, _class='w2p_fc'),
@@ -1109,20 +1118,6 @@ def addrow(form, a, b, c, style, _id, position=-1):
                                     DIV(b, _class='w2p_fw'),
                                     DIV(c, _class='w2p_fc'),
                                     _id=_id))
-    elif style == "bootstrap":
-        form[0].insert(position, DIV(LABEL(a, _class='control-label'),
-                                     DIV(b, SPAN(c, _class='inline-help'),
-                                         _class='controls'),
-                                     _class='control-group', _id=_id))
-    elif style == "bootstrap3_inline":
-        form[0].insert(position, DIV(LABEL(a, _class='control-label col-sm-3'),
-                                     DIV(b, SPAN(c, _class='help-block'),
-                                         _class='col-sm-9'),
-                                     _class='form-group', _id=_id))
-    elif style == "bootstrap3_stacked":
-        form[0].insert(position, DIV(LABEL(a, _class='control-label'),
-                                     b, SPAN(c, _class='help-block'),
-                                     _class='form-group', _id=_id))
     else:
         form[0].insert(position, TR(TD(LABEL(a), _class='w2p_fl'),
                                     TD(b, _class='w2p_fw'),
@@ -1320,14 +1315,13 @@ class AuthJWT(object):
         ## result seem to be the same (seconds since epoch, in UTC)
         now = time.mktime(datetime.datetime.now().timetuple())
         expires = now + self.expiration
-        payload = dict(
+        return dict(
             hmac_key=session_auth['hmac_key'],
             user_groups=session_auth['user_groups'],
             user=session_auth['user'].as_dict(),
             iat=now,
             exp=expires
         )
-        return payload
 
     def refresh_token(self, orig_payload):
         now = time.mktime(datetime.datetime.now().timetuple())
@@ -1935,8 +1929,8 @@ class Auth(object):
                        'change_password', 'profile', 'groups',
                        'impersonate', 'not_authorized', 'confirm_registration',
                        'bulk_register', 'manage_tokens', 'jwt'):
-            if len(request.args) >= 2 and args[0] == 'impersonate':
-                return getattr(self, args[0])(request.args[1])
+            if len(args) >= 2 and args[0] == 'impersonate':
+                return getattr(self, args[0])(args[1])
             else:
                 return getattr(self, args[0])()
         elif args[0] == 'cas' and not self.settings.cas_provider:
@@ -2202,9 +2196,11 @@ class Auth(object):
             current_record.replace('_', ' ').title())
         for table in tables:
             fieldnames = table.fields()
-            if ('id' in fieldnames and
-                'modified_on' in fieldnames and
-                not current_record in fieldnames):
+            if (
+                'id' in fieldnames
+                and 'modified_on' in fieldnames
+                and current_record not in fieldnames
+            ):
                 table._enable_record_versioning(archive_db=archive_db,
                                                 archive_name=archive_names,
                                                 current_record=current_record,
@@ -2283,14 +2279,7 @@ class Auth(object):
         settings.enable_tokens = enable_tokens
         if not self.signature:
             self.define_signature()
-        if signature:
-            signature_list = [self.signature]
-        elif not signature:
-            signature_list = []
-        elif isinstance(signature, Table):
-            signature_list = [signature]
-        else:
-            signature_list = signature
+        signature_list = [self.signature] if signature else []
         is_not_empty = IS_NOT_EMPTY(error_message=self.messages.is_empty)
         is_crypted = CRYPT(key=settings.hmac_key,
                            min_length=settings.password_min_length)
@@ -2449,21 +2438,20 @@ class Auth(object):
                         settings.table_event_name, migrate),
                     fake_migrate=fake_migrate))
         now = current.request.now
-        if settings.cas_domains:
-            if settings.table_cas_name not in db.tables:
-                db.define_table(
-                    settings.table_cas_name,
-                    Field('user_id', reference_table_user, default=None,
-                          label=self.messages.label_user_id),
-                    Field('created_on', 'datetime', default=now),
-                    Field('service', requires=IS_URL()),
-                    Field('ticket'),
-                    Field('renew', 'boolean', default=False),
-                    *settings.extra_fields.get(settings.table_cas_name, []),
-                    **dict(
-                        migrate=self.__get_migrate(
-                            settings.table_cas_name, migrate),
-                        fake_migrate=fake_migrate))
+        if settings.cas_domains and settings.table_cas_name not in db.tables:
+            db.define_table(
+                settings.table_cas_name,
+                Field('user_id', reference_table_user, default=None,
+                      label=self.messages.label_user_id),
+                Field('created_on', 'datetime', default=now),
+                Field('service', requires=IS_URL()),
+                Field('ticket'),
+                Field('renew', 'boolean', default=False),
+                *settings.extra_fields.get(settings.table_cas_name, []),
+                **dict(
+                    migrate=self.__get_migrate(
+                        settings.table_cas_name, migrate),
+                    fake_migrate=fake_migrate))
         if settings.enable_tokens:
             extra_fields = settings.extra_fields.get(
                 settings.table_token_name, []) + signature_list
@@ -2494,9 +2482,9 @@ class Auth(object):
             maps = settings.cas_maps
             if not maps:
                 table_user = self.table_user()
-                maps = dict((name, lambda v, n=name: v.get(n, None)) for name in
-                            table_user.fields if name != 'id'
-                            and table_user[name].readable)
+                maps = {name: lambda v, n=name: v.get(n, None) for name in
+                                        table_user.fields if name != 'id'
+                                        and table_user[name].readable}
                 maps['registration_id'] = \
                     lambda v, p=settings.cas_provider: '%s/%s' % (p, v['user'])
             actions = [settings.cas_actions['login'],
@@ -2568,7 +2556,7 @@ class Auth(object):
                 if key in keys:
                     update_keys[key] = keys[key]
             user.update_record(**update_keys)
-        elif checks:
+        else:
             if 'first_name' not in keys and 'first_name' in table_user.fields:
                 guess = keys.get('email', 'anonymous').split('@')[0]
                 keys['first_name'] = keys.get('username', guess)
@@ -2616,7 +2604,7 @@ class Auth(object):
             elif basic_auth_realm is True:
                 basic_realm = u'' + current.request.application
             http_401 = HTTP(401, u'Not Authorized', **{'WWW-Authenticate': u'Basic realm="' + basic_realm + '"'})
-        if not basic or not basic[:6].lower() == 'basic ':
+        if not basic or basic[:6].lower() != 'basic ':
             if basic_auth_realm:
                 raise http_401
             return (True, False, False)

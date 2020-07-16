@@ -317,9 +317,11 @@ def is_valid_ip_address(address):
                 return False
         else:  # try validate using Regex
             match = REGEX_IPv4.match(address)
-            if match and all(0 <= int(match.group(i)) < 256 for i in (1, 2, 3, 4)):
-                return True
-            return False
+            return bool(
+                match
+                and all(0 <= int(match.group(i)) < 256 for i in (1, 2, 3, 4))
+            )
+
     elif hasattr(socket, 'inet_pton'):  # assume IPv6, try using the OS
         try:
             socket.inet_pton(socket.AF_INET6, address)
@@ -352,9 +354,12 @@ def getipaddrinfo(host):
     Filter out non-IP and bad IP addresses from getaddrinfo
     """
     try:
-        return [addrinfo for addrinfo in socket.getaddrinfo(host, None)
-                if (addrinfo[0] == socket.AF_INET or
-                    addrinfo[0] == socket.AF_INET6)
-                and isinstance(addrinfo[4][0], basestring)]
+        return [
+            addrinfo
+            for addrinfo in socket.getaddrinfo(host, None)
+            if addrinfo[0] in [socket.AF_INET, socket.AF_INET6]
+            and isinstance(addrinfo[4][0], basestring)
+        ]
+
     except socket.error:
         return []

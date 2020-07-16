@@ -254,9 +254,8 @@ class JSONWidget(FormWidget):
 
         see also: `FormWidget.widget`
         """
-        if not isinstance(value, basestring):
-            if value is not None:
-                value = serializers.json(value)
+        if not isinstance(value, basestring) and value is not None:
+            value = serializers.json(value)
         default = dict(value=value)
         attr = cls._attributes(field, default, **attributes)
         return TEXTAREA(**attr)
@@ -324,10 +323,7 @@ class ListWidget(StringWidget):
     def widget(cls, field, value, **attributes):
         _id = '%s_%s' % (field.tablename, field.name)
         _name = field.name
-        if field.type == 'list:integer':
-            _class = 'integer'
-        else:
-            _class = 'string'
+        _class = 'integer' if field.type == 'list:integer' else 'string'
         requires = field.requires if isinstance(
             field.requires, (IS_NOT_EMPTY, IS_LIST_OF)) else None
         if isinstance(value, str):
@@ -372,11 +368,7 @@ class RadioWidget(OptionsWidget):
         see also: `FormWidget.widget`
         """
 
-        if isinstance(value, (list, tuple)):
-            value = str(value[0])
-        else:
-            value = str(value)
-
+        value = str(value[0]) if isinstance(value, (list, tuple)) else str(value)
         attr = cls._attributes(field, {}, **attributes)
         attr['_class'] = add_class(attr.get('_class'), 'web2py_radiowidget')
 
@@ -475,10 +467,7 @@ class CheckboxesWidget(OptionsWidget):
         for r_index in range(rows):
             tds = []
             for k, v in options[r_index * cols:(r_index + 1) * cols]:
-                if k in values:
-                    r_value = k
-                else:
-                    r_value = []
+                r_value = k if k in values else []
                 tds.append(inner(INPUT(_type='checkbox',
                                        _id='%s%s' % (field.name, k),
                                        _name=field.name,
@@ -635,9 +624,7 @@ class UploadWidget(FormWidget):
         """
 
         extension = value.split('.')[-1].lower()
-        if extension in ['gif', 'png', 'jpg', 'jpeg', 'bmp']:
-            return True
-        return False
+        return extension in ['gif', 'png', 'jpg', 'jpeg', 'bmp']
 
 
 class AutocompleteWidget(object):
@@ -675,54 +662,55 @@ class AutocompleteWidget(object):
             self.url = request
 
     def callback(self):
-        if self.keyword in self.request.vars:
-            field = self.fields[0]
-            if type(field) is Field.Virtual:
-                records = []
-                table_rows = self.db(self.db[field.tablename]).select(orderby=self.orderby)
-                count = 0
-                for row in table_rows:
-                    if self.at_beginning:
-                        if row[field.name].lower().startswith(self.request.vars[self.keyword]):
-                            count += 1
-                            records.append(row)
-                    else:
-                        if self.request.vars[self.keyword] in row[field.name].lower():
-                            count += 1
-                            records.append(row)
-                    if count == 10:
-                        break
-                rows = Rows(self.db, records, table_rows.colnames, compact=table_rows.compact)
-            elif settings and settings.global_settings.web2py_runtime_gae:
-                rows = self.db(field.__ge__(self.request.vars[self.keyword]) & field.__lt__(self.request.vars[self.keyword] + u'\ufffd')).select(orderby=self.orderby, limitby=self.limitby, *(self.fields+self.help_fields))
-            elif self.at_beginning:
-                rows = self.db(field.like(self.request.vars[self.keyword] + '%', case_sensitive=False)).select(orderby=self.orderby, limitby=self.limitby, distinct=self.distinct, *(self.fields+self.help_fields))
-            else:
-                rows = self.db(field.contains(self.request.vars[self.keyword], case_sensitive=False)).select(orderby=self.orderby, limitby=self.limitby, distinct=self.distinct, *(self.fields+self.help_fields))
-            if rows:
-                if self.is_reference:
-                    id_field = self.fields[1]
-                    if self.help_fields:
-                        options = [OPTION(
-                            self.help_string % dict([(h.name, s[h.name]) for h in self.fields[:1] + self.help_fields]),
-                                   _value=s[id_field.name], _selected=(k == 0)) for k, s in enumerate(rows)]
-                    else:
-                        options = [OPTION(
-                            s[field.name], _value=s[id_field.name],
-                            _selected=(k == 0)) for k, s in enumerate(rows)]
-                    raise HTTP(
-                        200, SELECT(_id=self.keyword, _class='autocomplete',
-                                    _size=len(rows), _multiple=(len(rows) == 1),
-                                    *options).xml())
+        if self.keyword not in self.request.vars:
+            return
+        field = self.fields[0]
+        if type(field) is Field.Virtual:
+            records = []
+            table_rows = self.db(self.db[field.tablename]).select(orderby=self.orderby)
+            count = 0
+            for row in table_rows:
+                if self.at_beginning:
+                    if row[field.name].lower().startswith(self.request.vars[self.keyword]):
+                        count += 1
+                        records.append(row)
                 else:
-                    raise HTTP(
-                        200, SELECT(_id=self.keyword, _class='autocomplete',
-                                    _size=len(rows), _multiple=(len(rows) == 1),
-                                    *[OPTION(s[field.name],
-                                             _selected=(k == 0))
-                                      for k, s in enumerate(rows)]).xml())
+                    if self.request.vars[self.keyword] in row[field.name].lower():
+                        count += 1
+                        records.append(row)
+                if count == 10:
+                    break
+            rows = Rows(self.db, records, table_rows.colnames, compact=table_rows.compact)
+        elif settings and settings.global_settings.web2py_runtime_gae:
+            rows = self.db(field.__ge__(self.request.vars[self.keyword]) & field.__lt__(self.request.vars[self.keyword] + u'\ufffd')).select(orderby=self.orderby, limitby=self.limitby, *(self.fields+self.help_fields))
+        elif self.at_beginning:
+            rows = self.db(field.like(self.request.vars[self.keyword] + '%', case_sensitive=False)).select(orderby=self.orderby, limitby=self.limitby, distinct=self.distinct, *(self.fields+self.help_fields))
+        else:
+            rows = self.db(field.contains(self.request.vars[self.keyword], case_sensitive=False)).select(orderby=self.orderby, limitby=self.limitby, distinct=self.distinct, *(self.fields+self.help_fields))
+        if rows:
+            if self.is_reference:
+                id_field = self.fields[1]
+                if self.help_fields:
+                    options = [OPTION(
+                        self.help_string % dict([(h.name, s[h.name]) for h in self.fields[:1] + self.help_fields]),
+                               _value=s[id_field.name], _selected=(k == 0)) for k, s in enumerate(rows)]
+                else:
+                    options = [OPTION(
+                        s[field.name], _value=s[id_field.name],
+                        _selected=(k == 0)) for k, s in enumerate(rows)]
+                raise HTTP(
+                    200, SELECT(_id=self.keyword, _class='autocomplete',
+                                _size=len(rows), _multiple=(len(rows) == 1),
+                                *options).xml())
             else:
-                raise HTTP(200, '')
+                raise HTTP(
+                    200, SELECT(_id=self.keyword, _class='autocomplete',
+                                _size=len(rows), _multiple=(len(rows) == 1),
+                                *[OPTION(s[field.name],
+                                         _selected=(k == 0))
+                                  for k, s in enumerate(rows)]).xml())
+        else:
+            raise HTTP(200, '')
 
     def __call__(self, field, value, **attributes):
         default = dict(
@@ -1076,11 +1064,13 @@ class SQLFORM(FORM):
             # - there is existing file and user is not trying to delete it
             # this is because removing the file may not pass validation
             for key in self.errors.keys():
-                if key in self.table \
-                        and self.table[key].type == 'upload' \
-                        and request_vars.get(key, None) in (None, '') \
-                        and self.record[key] \
-                        and not key + UploadWidget.ID_DELETE_SUFFIX in request_vars:
+                if (
+                    key in self.table
+                    and self.table[key].type == 'upload'
+                    and request_vars.get(key, None) in (None, '')
+                    and self.record[key]
+                    and key + UploadWidget.ID_DELETE_SUFFIX not in request_vars
+                ):
                     del self.errors[key]
             if not self.errors:
                 status = True

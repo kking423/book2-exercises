@@ -422,10 +422,9 @@ def test(testpath, import_models=True, verbose=False):
 
 
 def get_usage():
-    usage = """
+    return """
   %prog [options] pythonfile
 """
-    return usage
 
 
 def execute_from_command_line(argv=None):
@@ -481,10 +480,7 @@ def execute_from_command_line(argv=None):
         parser.print_help()
         sys.exit(0)
 
-    if len(args) > 0:
-        startfile = args[0]
-    else:
-        startfile = ''
+    startfile = args[0] if len(args) > 0 else ''
     run(options.shell, options.plain, startfile=startfile,
         bpython=options.bpython)
 

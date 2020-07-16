@@ -131,7 +131,7 @@ def copystream_progress(request, chunk_size=10 ** 5):
         dest = tempfile.NamedTemporaryFile()
     except NotImplementedError:  # and GAE this
         dest = tempfile.TemporaryFile()
-    if not 'X-Progress-ID' in request.get_vars:
+    if 'X-Progress-ID' not in request.get_vars:
         copystream(source, dest, size, chunk_size)
         return dest
     cache_key = 'X-Progress-ID:' + request.get_vars['X-Progress-ID']
@@ -403,8 +403,7 @@ class Response(Storage):
     def __init__(self):
         Storage.__init__(self)
         self.status = 200
-        self.headers = dict()
-        self.headers['X-Powered-By'] = 'web2py'
+        self.headers = {'X-Powered-By': 'web2py'}
         self.body = cStringIO.StringIO()
         self.session_id = None
         self.cookies = Cookie.SimpleCookie()
@@ -571,10 +570,7 @@ class Response(Storage):
         # for attachment settings and backward compatibility
         keys = [item.lower() for item in headers]
         if attachment:
-            if filename is None:
-                attname = ""
-            else:
-                attname = filename
+            attname = "" if filename is None else filename
             headers["Content-Disposition"] = \
                 'attachment;filename="%s"' % attname
 
@@ -591,9 +587,9 @@ class Response(Storage):
         if hasattr(stream, 'name'):
             filename = stream.name
 
-        if filename and not 'content-type' in keys:
+        if filename and 'content-type' not in keys:
             headers['Content-Type'] = contenttype(filename)
-        if filename and not 'content-length' in keys:
+        if filename and 'content-length' not in keys:
             try:
                 headers['Content-Length'] = \
                     os.path.getsize(filename)
@@ -1060,12 +1056,12 @@ class Session(Storage):
         response = current.response
         session = response.session
         masterapp = response.session_masterapp
-        cookies = request.cookies
         rcookies = response.cookies
 
         # if not cookie_key, but session_data_name in cookies
         # expire session_data_name from cookies
         if not current._session_cookie_key:
+            cookies = request.cookies
             if response.session_data_name in cookies:
                 rcookies[response.session_data_name] = 'expired'
                 rcookies[response.session_data_name]['path'] = '/'
@@ -1176,9 +1172,8 @@ class Session(Storage):
                   modified_datetime=request.now,
                   session_data=session_pickled,
                   unique_key=unique_key)
-        if record_id:
-            if not table._db(table.id == record_id).update(**dd):
-                record_id = None
+        if record_id and not table._db(table.id == record_id).update(**dd):
+            record_id = None
         if not record_id:
             record_id = table.insert(**dd)
             response.session_id = '%s:%s' % (record_id, unique_key)

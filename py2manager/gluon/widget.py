@@ -10,6 +10,7 @@ The widget is called from web2py
 ----------------------------------
 """
 
+
 import datetime
 import sys
 import cStringIO
@@ -41,9 +42,9 @@ ProgramInfo = '''%s
                  %s
                  %s''' % (ProgramName, ProgramAuthor, ProgramVersion)
 
-if not sys.version[:3] in ['2.6', '2.7']:
+if sys.version[:3] not in ['2.6', '2.7']:
     msg = 'Warning: web2py requires Python 2.6 or 2.7 but you are running:\n%s'
-    msg = msg % sys.version
+    msg %= sys.version
     sys.stderr.write(msg)
 
 logger = logging.getLogger("web2py")
@@ -104,18 +105,12 @@ class IO(object):
 
 
 def get_url(host, path='/', proto='http', port=80):
-    if ':' in host:
-        host = '[%s]' % host
-    else:
-        host = host.replace('0.0.0.0', '127.0.0.1')
+    host = '[%s]' % host if ':' in host else host.replace('0.0.0.0', '127.0.0.1')
     if path.startswith('/'):
         path = path[1:]
     if proto.endswith(':'):
         proto = proto[:-1]
-    if not port or port == 80:
-        port = ''
-    else:
-        port = ':%s' % port
+    port = '' if not port or port == 80 else ':%s' % port
     return '%s://%s%s/%s' % (proto, host, port, path)
 
 
@@ -537,11 +532,7 @@ class web2pyDialog(object):
             self.tb.SetServerRunning()
 
     def server_ready(self):
-        for listener in self.server.server.listeners:
-            if listener.ready:
-                return True
-
-        return False
+        return any(listener.ready for listener in self.server.server.listeners)
 
     def stop(self):
         """ Stops web2py server """

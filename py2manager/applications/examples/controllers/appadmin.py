@@ -568,7 +568,7 @@ def table_template(table):
 def bg_graph_model():
     graph = pgv.AGraph(layout='dot',  directed=True,  strict=False,  rankdir='LR')
 
-    subgraphs = dict()
+    subgraphs = {}
     for tablename in db.tables:
         if hasattr(db[tablename],'_meta_graphmodel'):
             meta_graphmodel = db[tablename]._meta_graphmodel
@@ -654,8 +654,9 @@ def manage():
     smartgrid_args = manager_action.get('smartgrid_args', {})
     kwargs.update(**smartgrid_args.get('DEFAULT', {}))
     kwargs.update(**smartgrid_args.get(table._tablename, {}))
-    grid = SQLFORM.smartgrid(table, args=request.args[:2], formname=formname, **kwargs)
-    return grid
+    return SQLFORM.smartgrid(
+        table, args=request.args[:2], formname=formname, **kwargs
+    )
 
 def hooks():
     import functools

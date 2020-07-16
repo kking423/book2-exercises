@@ -66,5 +66,4 @@ def release_lock(instance, lockname, identifier):
 
 
 def register_release_lock(conn):
-    rtn = conn.register_script(_LUA_RELEASE_LOCK)
-    return rtn
+    return conn.register_script(_LUA_RELEASE_LOCK)

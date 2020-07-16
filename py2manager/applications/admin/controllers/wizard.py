@@ -142,18 +142,21 @@ def step2():
     if form.accepts(request.vars):
         table_names = [clean(t) for t in listify(form.vars.table_names)
                        if t.strip()]
-        if [t for t in table_names if t.startswith('auth_') and
-                not t == 'auth_user']:
+        if [
+            t
+            for t in table_names
+            if t.startswith('auth_') and t != 'auth_user'
+        ]:
             form.error.table_names = \
                 T('invalid table names (auth_* tables already defined)')
         else:
             session.app['tables'] = table_names
             for table in session.app['tables']:
-                if not 'table_' + table in session.app:
+                if 'table_' + table not in session.app:
                     session.app['table_' + table] = ['name']
-                if not table == 'auth_user':
+                if table != 'auth_user':
                     name = table + '_manage'
-                    if not name in session.app['pages']:
+                    if name not in session.app['pages']:
                         session.app['pages'].append(name)
                         session.app['page_' + name] = \
                             '## Manage %s\n\n{{=form}}' % (table)
@@ -177,7 +180,7 @@ def step3():
         fields = listify(form.vars.field_names)
         if table == 'auth_user':
             for field in ['first_name', 'last_name', 'username', 'email', 'password']:
-                if not field in fields:
+                if field not in fields:
                     fields.append(field)
         session.app['table_' + table] = [t.strip().lower()
                                          for t in listify(form.vars.field_names)
@@ -278,7 +281,7 @@ def sort_tables(tables):
         for t in d[table]:
             # if not t==table: (problem, no dropdown for self references)
             append(t, trail=trail + [table])
-        if not table in tables:
+        if table not in tables:
             tables.append(table)
     for table in d:
         append(table)
@@ -307,8 +310,7 @@ def make_table(table, fields):
                 has[key] = True
         tables = session.app['tables']
         refs = [t for t in tables if t in items]
-        items = items[:1] + [x for x in items[1:]
-                             if not x in keys and not x in tables]
+        items = items[:1] + [x for x in items[1:] if x not in keys and x not in tables]
         barename = name = '_'.join(items)
         if table[:2] == 't_': name = 'f_' + name
         if first_field == 'id':
@@ -326,7 +328,7 @@ def make_table(table, fields):
                 ftype = t
         if refs:
             key = refs[0]
-            if not key == 'auth_user':
+            if key != 'auth_user':
                 key = 't_' + key
             if 'multiple' in has:
                 ftype = 'list:reference %s' % key
@@ -437,10 +439,7 @@ def make_menu(pages):
     s += 'response.menu = [\n'
     for page in pages:
         if not page.startswith('error'):
-            if page.endswith('_manage'):
-                page_name = page[:-7]
-            else:
-                page_name = page
+            page_name = page[:-7] if page.endswith('_manage') else page
             page_name = ' '.join(x.capitalize() for x in page_name.split('_'))
             s += "(T('%s'),URL('default','%s')==URL(),URL('default','%s'),[]),\n" \
                 % (page_name, page, page)
@@ -449,7 +448,7 @@ def make_menu(pages):
 
 
 def make_page(page, contents):
-    if 'auth_user' in session.app['tables'] and not page in ('index', 'error'):
+    if 'auth_user' in session.app['tables'] and page not in ('index', 'error'):
         s = "@auth.requires_login()\ndef %s():\n" % page
     else:
         s = "def %s():\n" % page

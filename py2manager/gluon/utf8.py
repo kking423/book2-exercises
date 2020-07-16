@@ -334,9 +334,15 @@ class Utf8(str):
         def format(self, *args, **kwargs):
             args = [unicode(
                 s, 'utf-8') if isinstance(s, str) else s for s in args]
-            kwargs = dict((unicode(k, 'utf-8') if isinstance(k, str) else k,
-                           unicode(v, 'utf-8') if isinstance(v, str) else v)
-                          for k, v in kwargs.iteritems())
+            kwargs = {
+                unicode(k, 'utf-8')
+                if isinstance(k, str)
+                else k: unicode(v, 'utf-8')
+                if isinstance(v, str)
+                else v
+                for k, v in kwargs.iteritems()
+            }
+
             return str.__new__(Utf8, unicode(self, 'utf-8').
                                format(*args, **kwargs).encode('utf-8'))
 
@@ -345,9 +351,15 @@ class Utf8(str):
             right = tuple(unicode(v, 'utf-8') if isinstance(v, str) else v
                           for v in right)
         elif isinstance(right, dict):
-            right = dict((unicode(k, 'utf-8') if isinstance(k, str) else k,
-                          unicode(v, 'utf-8') if isinstance(v, str) else v)
-                         for k, v in right.iteritems())
+            right = {
+                unicode(k, 'utf-8')
+                if isinstance(k, str)
+                else k: unicode(v, 'utf-8')
+                if isinstance(v, str)
+                else v
+                for k, v in right.iteritems()
+            }
+
         elif isinstance(right, str):
             right = unicode(right, 'utf-8')
         return str.__new__(Utf8, unicode(self, 'utf-8').__mod__(right).encode('utf-8'))

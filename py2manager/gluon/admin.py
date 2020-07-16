@@ -145,8 +145,7 @@ def app_compile(app, request, skip_failed_views=False):
     from compileapp import compile_application, remove_compiled_application
     folder = apath(app, request)
     try:
-        failed_views = compile_application(folder, skip_failed_views)
-        return failed_views
+        return compile_application(folder, skip_failed_views)
     except (Exception, RestrictedError):
         tb = traceback.format_exc()
         remove_compiled_application(folder)
@@ -433,8 +432,7 @@ def upgrade(request, url='http://web2py.com'):
 
 
 def add_path_first(path):
-    sys.path = [path] + [p for p in sys.path if (
-        not p == path and not p == (path + '/'))]
+    sys.path = [path] + [p for p in sys.path if p != path and p != path + '/']
     if not global_settings.web2py_runtime_gae:
         site.addsitedir(path)
 
@@ -451,12 +449,14 @@ def create_missing_folders():
 
 
 def create_missing_app_folders(request):
-    if not global_settings.web2py_runtime_gae:
-        if request.folder not in global_settings.app_folders:
-            for subfolder in ('models', 'views', 'controllers', 'databases',
-                              'modules', 'cron', 'errors', 'sessions',
-                              'languages', 'static', 'private', 'uploads'):
-                path = os.path.join(request.folder, subfolder)
-                if not os.path.exists(path):
-                    os.mkdir(path)
-            global_settings.app_folders.add(request.folder)
+    if (
+        not global_settings.web2py_runtime_gae
+        and request.folder not in global_settings.app_folders
+    ):
+        for subfolder in ('models', 'views', 'controllers', 'databases',
+                          'modules', 'cron', 'errors', 'sessions',
+                          'languages', 'static', 'private', 'uploads'):
+            path = os.path.join(request.folder, subfolder)
+            if not os.path.exists(path):
+                os.mkdir(path)
+        global_settings.app_folders.add(request.folder)

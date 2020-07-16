@@ -9,6 +9,7 @@ License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
 This file is based, although a rewrite, on MIT-licensed code from the Bottle web framework.
 """
 
+
 import os
 import sys
 import optparse
@@ -16,7 +17,7 @@ import urllib
 
 path = os.path.dirname(os.path.abspath(__file__))
 os.chdir(path)
-sys.path = [path] + [p for p in sys.path if not p == path]
+sys.path = [path] + [p for p in sys.path if p != path]
 
 
 class Servers:
@@ -95,8 +96,12 @@ class Servers:
         workers = options.workers
         from gevent import pywsgi
         from gevent.pool import Pool
-        pywsgi.WSGIServer(address, app, spawn=workers and Pool(
-            int(options.workers)) or 'default', log=None).serve_forever()
+        pywsgi.WSGIServer(
+            address,
+            app,
+            spawn=workers and Pool(int(workers)) or 'default',
+            log=None,
+        ).serve_forever()
 
     @staticmethod
     def bjoern(app, address, **options):

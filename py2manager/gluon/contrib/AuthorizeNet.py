@@ -31,7 +31,7 @@ class NamedTupleBase(tuple):
         # May need to unpack named field values here
         if kws:
             values = list(args) + [None] * (len(cls._fields) - len(args))
-            fields = dict((val, idx) for idx, val in enumerate(cls._fields))
+            fields = {val: idx for idx, val in enumerate(cls._fields)}
             for kw, val in kws.iteritems():
                 assert kw in kws, "%r not in field list" % kw
                 values[fields[kw]] = val
@@ -138,7 +138,7 @@ class AIM:
                                           ShippingLastName ShippingCompany ShippingAddress ShippingCity ShippingState \
                                           ShippingZip ShippingCountry TaxAmount DutyAmount FreightAmount TaxExemptFlag \
                                           PONumber MD5Hash CVVResponse CAVVResponse')
-        self.response = Results(*tuple(r for r in self.results)[0:40])
+        self.response = Results(*tuple(self.results)[0:40])
 
         if self.getResultResponseFull() == 'Approved':
             self.error = False
